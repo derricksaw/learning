@@ -1,0 +1,19 @@
+node_modules/
+.env
+.env.*
+*.log
+.DS_Store
+*.swp
+*.swo
+*~
+.foam/
+.vscode/
+
+# Terminal Paste Image folder
+/.cp-images
+
+# Terminal Paste Image folder
+/.cp-images
+
+# Terminal Paste Image folder
+/.cp-images
