@@ -17,6 +17,25 @@ In implementation, the separation needs a boundary and a contract. Moving code i
 | Separation of concerns | Division of responsibilities | Give decisions and behavior a clear home |
 | Cohesion | Relationships within a component | Keep closely related work together |
 | Coupling | Dependencies between components | Control knowledge and change propagation across boundaries |
+| Abstraction | What a component exposes and hides | Offer meaningful operations without exposing unnecessary details |
+
+Think of an application as a restaurant. Serving customers, preparing food, and collecting payment are distinct concerns. Separation of concerns gives each responsibility a home:
+
+```mermaid
+flowchart TB
+    subgraph MIXED[Mixed responsibilities]
+        A[One worker] --> B[Take orders]
+        A --> C[Cook meals]
+        A --> D[Process payments]
+    end
+    subgraph SEPARATED[Separated responsibilities]
+        W[Waiter] --> O[Order taking]
+        K[Kitchen] --> F[Food preparation]
+        P[Cashier] --> M[Payment processing]
+    end
+```
+
+These roles still collaborate. The boundary determines who owns each decision, rather than making each role independent of everyone else.
 
 For example, a notification component should own provider-specific message construction and delivery. Its caller should know what notification it needs, not how to assemble a particular vendor's request.
 
@@ -26,7 +45,24 @@ A component can have several methods and still own one coherent responsibility. 
 
 **Cohesion is how well the contents of one component belong together.** For a class, examine its methods and data as a group: do they help accomplish one focused purpose?
 
-Imagine a class as a box of tools. Pricing tools belong together because they calculate an order's price. An email formatter and a SQL builder may each be useful, but placing them in the same box does not give them a shared responsibility.
+Zoom inside one restaurant station. Food preparation activities belong together; refunds and website colours have different purposes:
+
+```mermaid
+flowchart TB
+    subgraph LOW[Low cohesion: miscellaneous station]
+        A[Chop vegetables]
+        B[Refund credit cards]
+        C[Change website colours]
+        D[Grill meat]
+    end
+    subgraph HIGH[High cohesion: food preparation]
+        E[Prepare ingredients] --> F[Cook meal]
+        F --> G[Check food quality]
+        G --> H[Plate meal]
+    end
+```
+
+The same distinction applies to classes. Pricing operations belong together because they calculate an order's price. An email formatter and a SQL builder may each be useful, but placing them in the same class does not give them a shared responsibility.
 
 ```mermaid
 flowchart TB
@@ -65,6 +101,36 @@ Eligibility, discounts, and totals are connected by the pricing decision. Email 
 
 High cohesion does not mean one method per class or the smallest possible class. Several methods can belong together when they enforce one coherent set of rules. It also does not mean code works in isolation: a cohesive pricing component can still depend on external data.
 
+For example, these Java methods all contribute to determining a price. Supporting types and imports are omitted; `OrderItem` provides `unitPrice()` and `quantity()`:
+
+```java
+class PricingPolicy {
+    BigDecimal calculateTotal(
+            List<OrderItem> items, boolean premiumCustomer) {
+        BigDecimal subtotal = calculateSubtotal(items);
+        BigDecimal discount = calculateDiscount(subtotal, premiumCustomer);
+        return subtotal.subtract(discount)
+                       .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateSubtotal(List<OrderItem> items) {
+        return items.stream()
+            .map(item -> item.unitPrice()
+                .multiply(BigDecimal.valueOf(item.quantity())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal calculateDiscount(
+            BigDecimal subtotal, boolean premiumCustomer) {
+        return premiumCustomer
+            ? subtotal.multiply(new BigDecimal("0.10"))
+            : BigDecimal.ZERO;
+    }
+}
+```
+
+The discount and rounding choices are illustrative business rules. Email formatting and database access would have separate homes because they serve different purposes.
+
 Grouping behavior with the state it protects can improve cohesion. For example, an order may expose a `cancel()` operation that checks whether cancellation is allowed. If callers instead set `status`, adjust totals, and release resources independently, the rule for a valid cancellation becomes scattered.
 
 Cohesion is not identical to common change frequency: a feature can require changes in several legitimate components. Conversely, putting everything that shares one database table into a class does not guarantee a coherent responsibility. Ask whether the behavior belongs to one meaningful concept and whether its rules can be understood together.
@@ -77,9 +143,74 @@ Low cohesion can appear as:
 
 These are clues, not mechanical rules requiring an immediate split.
 
+## Abstraction and cohesion
+
+**Abstraction presents the operations a caller needs while hiding details it does not need to manage.** At a restaurant, an order ticket says what meal to prepare. The waiter does not need to choose pans or control the stove.
+
+```mermaid
+flowchart TB
+    W[Waiter] --> I[Visible operation: prepare an order]
+    subgraph K[Kitchen boundary]
+        I --> A[Choose equipment]
+        A --> B[Prepare ingredients]
+        B --> C[Control heat and timing]
+        C --> D[Plate meal]
+    end
+    D --> M[Prepared meal]
+```
+
+The public operation is the abstraction; the kitchen's preparation steps are implementation details. Those internal steps are cohesive because they work toward preparing the meal. High cohesion can therefore support a useful abstraction.
+
+The pricing example follows the same structure:
+
+```mermaid
+flowchart LR
+    C[Caller] --> API[calculateTotal: public operation]
+    subgraph P[Cohesive pricing component]
+        API --> S[Calculate subtotal]
+        S --> D[Apply discount]
+        D --> R[Round total]
+    end
+    R --> T[Final price]
+```
+
+The caller uses `pricing.calculateTotal(items, premiumCustomer)` without assembling those steps itself. Cohesion describes why the steps belong together; abstraction describes what the caller sees.
+
+Creating a separate interface for every step adds abstraction boundaries, but may leave callers coordinating details:
+
+```java
+BigDecimal subtotal = subtotalCalculator.calculate(items);
+BigDecimal discount = discountCalculator.calculate(subtotal, premiumCustomer);
+BigDecimal total = roundingPolicy.round(subtotal.subtract(discount));
+```
+
+If every caller must repeat this sequence, the pricing decision is scattered. Keeping the sequence inside `PricingPolicy` gives it one owner. Separate collaborators can still be useful when their rules vary independently; the policy can coordinate them internally.
+
+Fewer classes or interfaces does not necessarily mean a weaker abstraction. A concrete class with a meaningful public method can provide abstraction. More interfaces do not automatically improve it.
+
 ## Coupling across boundaries
 
 **Coupling is dependence between parts of a system.** Components need to collaborate, so eliminating all coupling is not a useful goal. Fowler highlights change propagation and the direction of dependencies as important design considerations. [Reducing Coupling](https://martinfowler.com/ieeeSoftware/coupling.pdf)
+
+At the restaurant, compare a waiter controlling the kitchen's equipment with a waiter submitting an order ticket:
+
+```mermaid
+flowchart TB
+    subgraph TIGHT[Tight coupling: waiter knows cooking details]
+        W1[Waiter] --> A[Choose a particular pan]
+        W1 --> B[Set burner temperature]
+        W1 --> C[Specify cooking sequence]
+        A --> K1[Kitchen]
+        B --> K1
+        C --> K1
+    end
+    subgraph LOOSE[Looser coupling: waiter knows the order contract]
+        W2[Waiter] --> T[Order ticket: one vegetarian pasta]
+        T --> K2[Kitchen chooses tools and cooking steps]
+    end
+```
+
+Changing equipment can disrupt the tightly coupled waiter. With an order-ticket contract, the kitchen can change its tools without changing how the waiter requests a meal. The waiter still depends on supported menu items, timing, and failure handling.
 
 Cohesion examines the contents **inside** a boundary; coupling examines dependence **across** boundaries:
 
@@ -116,6 +247,42 @@ NotificationSender.send(VendorRequest) -> VendorResponse
 ```
 
 A contract such as `sendOrderConfirmation(Confirmation)` can keep that knowledge inside an adapter. However, callers still depend on its meaning: delivery guarantees, errors, and whether the call blocks. An interface does not erase these dependencies.
+
+For a concrete Java comparison, this order operation knows a vendor's request format, template identifier, and response status. Supporting types are illustrative:
+
+```java
+// Inside an order service that depends directly on a vendor client:
+void notifyCustomer(Order order) {
+    VendorEmailRequest request = new VendorEmailRequest();
+    request.setTemplateId("template-order-123");
+    request.setRecipient(order.customerEmail());
+    request.setVariable("order_id", order.id());
+
+    VendorEmailResponse response = vendorClient.send(request);
+    if (!"accepted".equals(response.status())) {
+        throw new IllegalStateException("Email rejected");
+    }
+}
+```
+
+A provider replacement would require editing order logic. Instead, expose the business operation through a contract:
+
+```java
+record OrderConfirmation(String orderId, String recipient) {}
+
+interface OrderNotifications {
+    void sendConfirmation(OrderConfirmation confirmation);
+}
+
+// Inside an order service with an injected OrderNotifications dependency:
+void notifyCustomer(Order order) {
+    notifications.sendConfirmation(
+        new OrderConfirmation(order.id(), order.customerEmail())
+    );
+}
+```
+
+Move the vendor request construction and status interpretation into an implementation of `OrderNotifications`. The order service depends on the confirmation contract; the implementation owns the provider details. An interface that still accepts `VendorEmailRequest` and returns `VendorEmailResponse` would preserve the knowledge dependency despite moving code into separate files.
 
 Source dependency and runtime behavior also differ. A service may reference only a notification interface while still requiring a working notification provider to complete every request. Introducing a queue can change the availability relationship, but creates new dependencies on message contracts, ordering, and delivery behavior.
 
@@ -212,6 +379,8 @@ Tracing is an example of a concern that crosses many such boundaries. AOP offers
 4. Why might splitting pricing into many tiny components make changes harder?
 5. Which responsibility owns the save-success/notification-failure decision in the order example?
 6. Pick a recent work change: which parts changed for necessary reasons, and which changed because details leaked?
+7. In the restaurant metaphor, how do responsibility ownership, activities within a station, dependencies between stations, and the order-ticket abstraction differ?
+8. How can a cohesive pricing component hide several calculation steps behind one useful abstraction? Why would adding more interfaces not necessarily improve it?
 
 ## References
 
