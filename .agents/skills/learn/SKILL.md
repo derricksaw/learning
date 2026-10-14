@@ -5,7 +5,7 @@ description: Maintain this repository's categorized Markdown learning notes when
 
 # Learn
 
-Treat the text after `/learn` as the learning topic and any supplied material as the starting source. If no topic is supplied, ask for it. Resolve repository paths relative to the repository containing this skill.
+Treat the text after `/learn` or `$learn` as the learning topic and any supplied material as the starting source. If no topic is supplied, ask for it. Resolve repository paths relative to the repository containing this skill.
 
 ## Find the right note
 

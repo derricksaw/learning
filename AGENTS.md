@@ -2,7 +2,7 @@
 
 This repository stores the user's learning notes as Markdown, grouped by topic category.
 
-For `/learn <topic>` or a request to add, capture, or improve learning notes, read and follow [skills/learn/SKILL.md](skills/learn/SKILL.md).
+For `/learn <topic>`, `$learn <topic>`, or a request to add, capture, or improve learning notes, read and follow [.agents/skills/learn/SKILL.md](.agents/skills/learn/SKILL.md).
 
 Before creating any new learning note, show the user a concrete preview and proposed repository-relative category folder and filename, then ask for explicit approval of creation and location. A `/learn` request alone is not approval to create a file. Wait for the user's response; silence is not approval. If the user changes the proposed location, use that location once creation is authorized.
 

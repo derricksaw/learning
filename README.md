@@ -18,4 +18,6 @@ The workflow searches existing notes first and improves a matching note with new
 
 Categories are created with approved notes, for example `devops/docker-networking.md` or `programming/python-generators.md`. No category structure is imposed in advance.
 
-The `/learn` text is a prompt convention handled by [AGENTS.md](AGENTS.md); it does not install a slash-command menu entry. The reusable workflow lives in [skills/learn/SKILL.md](skills/learn/SKILL.md).
+The reusable workflow lives in [.agents/skills/learn/SKILL.md](.agents/skills/learn/SKILL.md), where Codex discovers the repository-local skill directly.
+
+Invoke the installed skill with `$learn <topic>` or select it through `/skills` in Codex. If it does not appear, restart Codex. The `/learn` text remains a prompt convention handled by [AGENTS.md](AGENTS.md), rather than a registered slash-menu command.
