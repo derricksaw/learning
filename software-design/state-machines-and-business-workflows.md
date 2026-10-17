@@ -86,6 +86,10 @@ Define each state by its meaning and allowed actions, not by an enum's position 
 
 For each state, specify its meaning, eligible commands, transition guards, and how waiting ends. Use amounts and constraints for partial payments/refunds; statuses alone cannot enforce balance rules. Start with explicit transition methods, use a table for many combinations, and consider the State pattern when substantial behavior varies by state.
 
+Separate **business progress, provider evidence, and recovery work**. An existing order state can remain unchanged while a task stores execution ownership, attempt count, and the next check time. You do not need another business status for every technical step, but you still need enough durable information to prevent concurrent sends and find unfinished work. A task finishing does not necessarily mean the business operation finished.
+
+Keep state diagrams focused on states and the evidence permitting transitions. Put scheduling, retry limits, and alerts in a sequence diagram or scenario table. An action that leaves the business state unchanged does not need another state merely to make it visible in the diagram.
+
 ## 2. Production practices for transitions
 
 ### Own and protect the rules
@@ -161,7 +165,7 @@ For our example, a durable timer can trigger a status check if no webhook arrive
 
 In a push design, register an endpoint or subscription, verify the event, and correlate its provider ID to PAYMENT-1. A pushed event may contain the result or only an identifier requiring a query. Push describes who initiates delivery, not whether queries are forbidden. [Stripe webhooks](https://docs.stripe.com/webhooks)
 
-If queries are unavailable, recovery depends on provider replay/delivery facilities or investigation. Duplicate wake-ups must be harmless.
+If queries are unavailable, recovery depends on provider replay/delivery facilities or investigation. A **missing-message check** only reads local records after a deadline; it does not query or resend to the provider. If the result is still missing, alert or hand it to an operator. Reliable publication, delivery retries, and dead-letter handling reduce message loss, but do not establish a business result when no message arrives. Duplicate wake-ups must be harmless, and duplicate intermediate messages must not keep extending the original waiting deadline indefinitely.
 
 ## 3. Failure handling and recovery
 
@@ -215,6 +219,8 @@ For example, Stripe exposes `Stripe-Should-Retry` guidance; its server errors ca
 
 In the keyboard example, a connection reset is a reason to expect communication might work next time, not evidence the charge failed. A retry budget limits how long to test that expectation. Repeated failures trigger diagnosis or deferred recovery, not unlimited attempts or a fabricated failure outcome. Classify recoverability and side-effect uncertainty separately.
 
+**Retryable and unknown are different dimensions.** Retryable means another attempt may help; unknown means execution cannot be confirmed. An attempt can be both. Reclassify after every response or exception: a retry following a temporary rejection can time out and leave the outcome unknown. Unknown after the first send and unknown after a retry use the same recovery rules; keep the attempt history separately. Neither should erase an already confirmed result.
+
 | Situation | What to repeat | When |
 |---|---|---|
 | Temporary connection failure or timeout sending payment | Same provider operation with the same key/parameters, if supported; alternatively query its outcome | After backoff, within provider guarantees, while collection remains permitted |
@@ -261,6 +267,344 @@ Persist the key before sending. Deduplicate customer submissions and local effec
 Provider contracts limit safe replay. Stripe API v1 may replay saved errors and prune keys after at least 24 hours; API v2 differs. Do not assume keys protect an operation forever. [Idempotent requests](https://docs.stripe.com/api/idempotent_requests)
 
 Retry temporary errors with bounded attempts/time and capped backoff plus jitter. Persist `nextAttemptAt`; avoid stacked retries at multiple layers. Invalid input needs correction. **Exhausting retries leaves an operational problem, not proof that payment failed.** [AWS retry guidance](https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/)
+
+### Retry and recovery task lifecycle
+
+**Save a way to find unfinished work before sending; decide whether to repeat the call after examining the evidence.** A recovery task is not an instruction to keep calling until success.
+
+#### Register recovery before the first call
+
+Registering a task only after a temporary error covers a narrower case than crash recovery:
+
+```mermaid
+flowchart TB
+    subgraph Late[Task registered only after a response]
+        A[Call provider] --> B[Receive temporary error]
+        B --> C[Save retry task]
+        A -. Crash before receiving response .-> X[No recovery task exists]
+        B -. Crash before saving task .-> X
+    end
+    subgraph Early[Recovery recorded before the call]
+        D[Save operation and recovery deadline] --> E[Commit successfully]
+        E --> F[Call provider]
+        F --> G[Use result to update or close recovery work]
+        F -. Crash .-> H[Scanner finds unfinished operation]
+    end
+```
+
+The earlier record can be an existing outgoing-work row, an engine timer, or an operation with a deadline that a scanner reads. A new task type is unnecessary if an existing mechanism already makes unfinished work discoverable. Merely writing a status without a scanner, timer, or reliable delivery path does not arrange recovery.
+
+Save intent and recovery tracking in the same database transaction when possible. If an external scheduler must be notified, use an outbox or another reliable handoff. Saving the operation and then independently registering a remote task leaves another crash gap between those writes.
+
+A future check time prevents immediate recovery, but is not an execution lock. Atomically claim permission to send, prevent concurrent callers, and recheck whether the action is still allowed. Do not hold a database transaction open during the external request. An expired claim allows recovery work to be examined; it does not by itself make repeating the external effect safe.
+
+#### Keep business outcome separate from task progress
+
+These are different questions, even if their answers live in existing records rather than new status columns:
+
+| Concern | Question | Example |
+|---|---|---|
+| Order progress | What business step is allowed now? | Awaiting payment; cancelled; ready to fulfill |
+| Provider evidence | What do we know about the external effect? | Processing confirmed; success confirmed; outcome unknown |
+| Execution ownership | Who may send right now? | One caller has permission; competing callers must wait |
+| Recovery work | What should happen next, and when? | Wait for a message; safely replay; alert an operator |
+
+Do not add an order-level processing status solely to represent every network call. Existing business states can stay unchanged while task metadata records ownership, attempt history, and timing. However, removing a status must not remove the information needed to block duplicate execution or detect abandoned work.
+
+The following diagram shows **task behavior**, not another order or payment state machine. Its labels can be represented by task fields and scheduling rules:
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "Recovery recorded" as Recorded
+    state "Next check scheduled" as Scheduled
+    state "Execution retry scheduled" as Retry
+    state "Automatic work closed" as Closed
+
+    [*] --> Recorded: Before first provider call
+    Recorded --> Closed: Result confirmed and applied
+    Recorded --> Closed: User action required and responsibility handed off
+    Recorded --> Scheduled: Processing or unknown outcome
+    Recorded --> Retry: Temporary problem and repetition is safe
+
+    Scheduled --> Closed: Result message confirmed and applied
+    Scheduled --> Scheduled: Still waiting within deadline
+    Scheduled --> Retry: Replay explicitly safe and still permitted
+    Scheduled --> Closed: Deadline reached and manual work saved
+
+    Retry --> Closed: Result confirmed and applied
+    Retry --> Retry: Temporary problem within retry budget
+    Retry --> Scheduled: Processing or unresolved outcome
+    Retry --> Closed: User action required or manual handoff completed
+```
+
+Closing automatic work only means that this mechanism has no more automatic action to perform. It does not mean the payment succeeded or failed. If an operator must continue, save a discoverable review item before closing the automatic task. If the user must act, the application needs an explicit way to show that requirement; do not silently discard it.
+
+#### Apply one result policy across every delivery path
+
+The original response, a background replay, and a webhook can all describe the same operation. Use one result handler that checks current state and evidence, applies business rules, and updates recovery work. The caller decides how to present the result; it must not maintain a separate version of the payment rules.
+
+```mermaid
+sequenceDiagram
+    actor Customer
+    participant App
+    participant DB
+    participant Provider
+    participant Worker
+
+    Customer->>App: Request payment
+    App->>App: Validate current business conditions
+    App->>DB: TX1 - save intent and recovery deadline and claim sending
+    DB-->>App: Commit
+    Note over App,DB: Order remains awaiting payment
+    App->>Provider: Execute using stable operation identity
+
+    alt Response received
+        Provider-->>App: Business result or user action requirement
+        App->>App: Classify evidence and next action
+    else Timeout or connection error
+        App->>App: Outcome may be unknown
+    end
+
+    App->>DB: TX2 - check latest state and apply result with task update
+    DB-->>App: Commit
+    App-->>Customer: Confirmed result or waiting or authentication challenge
+
+    opt Provider event arrives before or after the response
+        Provider-->>App: Event describing the operation
+        App->>DB: Same result rules and atomic task update
+        DB-->>App: Commit durable handling
+        App-->>Provider: Acknowledge event receipt
+    end
+
+    opt Recovery deadline becomes due
+        Worker->>DB: Atomically claim due work and read latest evidence
+        alt Already resolved
+            Worker->>DB: Close redundant recovery work
+        else Safe replay allowed and no competing sender
+            Worker->>Provider: Repeat same logical operation
+            Provider-->>Worker: Result or communication error
+            Worker->>DB: Apply same result rules and update next action
+        else Query supported and appropriate
+            Worker->>Provider: Retrieve existing operation result
+            Provider-->>Worker: Current evidence
+            Worker->>DB: Apply same result rules and update next action
+        else No safe automatic action
+            Worker->>DB: Wait within deadline or save manual review and close task
+        end
+    end
+```
+
+If a webhook confirms payment while the synchronous call is still waiting, the later response must check the latest record. A timeout handler cannot replace success with unknown. A late processing event cannot reopen completed work. Different event IDs describing the same success must not schedule fulfillment twice.
+
+For externally scheduled tasks, committing a database change and cancelling the scheduler job are not necessarily atomic. Mark the durable work completed with the business update, then let a late scheduler invocation read that marker and exit. Scheduler cancellation alone is not the correctness mechanism.
+
+| Observation | Business handling | Task handling |
+|---|---|---|
+| Confirmed success | Apply success under current order rules | Close work with the result and local effects |
+| Confirmed final failure | Record this operation as failed | Close work; a new operation requires a new permitted business decision |
+| Provider confirms processing | Keep waiting for its result | Stop execution retries; retain a missing-message deadline |
+| Temporary rejection with safe repetition | Keep the current operation open | Reschedule existing work with bounded backoff; do not create duplicate tasks |
+| Unknown outcome after any attempt | Preserve uncertainty; do not restore eligibility for another charge | Query if available, replay only under explicit guarantees, or wait and investigate |
+| User authentication required | Return a challenge through an active authenticated interaction | Stop unattended execution; arrange supported user action or investigation |
+| Result cannot be interpreted | Keep raw evidence; do not guess a business outcome | Alert and retain recoverable work; fix interpretation before replaying execution |
+| Retry budget exhausted | Do not invent success or failure | Stop execution; retain monitoring or make a durable manual handoff |
+| Duplicate or stale intermediate result | Keep newer confirmed evidence | Do not reopen completed work, reset counters, or extend deadlines indefinitely |
+
+When rescheduling, preserve the original operation identity, elapsed recovery time, and attempt history. Define whether an attempt counter counts actual sends or all scheduled checks; waiting for a message should not accidentally consume an execution retry. Duplicate task triggers must not grant a new budget.
+
+A retryable response does not authorize every later retry. Recheck the current result, business eligibility, provider replay guarantees, and remaining budget before every send. If an attempt becomes unknown, follow the unknown-outcome rules rather than continuing the old retry decision.
+
+#### The boundary no local marker can remove
+
+Consider two histories:
+
+```mermaid
+flowchart TB
+    A[Save permission to send] --> B{What happens next?}
+    B --> C[Crash before the call]
+    B --> D[Provider executes the call]
+    D --> E[Crash before saving the response]
+    C --> F[Same local record with no confirmed result]
+    E --> F
+    F --> G[Local records alone cannot distinguish the histories]
+```
+
+If the protocol requires a committed claim before every send, untouched queued work can be sent for the first time. Once a sender has permission, abandoned work may already have executed. Adding another local marker only moves the point at which a crash can leave uncertainty.
+
+A queue, distributed lock, or workflow engine cannot commit atomically with an arbitrary external provider. They can preserve intent, coordinate workers, and detect missed progress. They cannot prove whether an unobservable external call executed. In particular, an expired lease must not be interpreted as proof that nothing was sent.
+
+The provider may offer useful guarantees without calling them a retry API: an enforced unique client reference, lookup by a reference saved before the call, event replay, or authoritative reconciliation records. Investigate the actual contract rather than inferring it from the phrase "no retries."
+
+If none is available, the choice remains:
+
+| Policy | Benefit | Accepted risk |
+|---|---|---|
+| Do not repeat uncertain calls | Avoid introducing duplicate execution through recovery | A call that never arrived may remain unresolved until investigation |
+| Repeat uncertain calls without deduplication | Increase the chance that an operation executes | The operation may execute more than once |
+
+For costly or irreversible effects, escalation is often preferable to an unsafe automatic resend. This is an explicit business tradeoff, not a missing enum value.
+
+#### Recovery when there is no status query
+
+A push-only provider changes the available recovery actions, not the meaning of uncertainty. Keep the immediate synchronous response as the fast path and the result event as another source of evidence. Local checks detect that nothing has arrived; they do not ask the provider anything.
+
+```mermaid
+flowchart TB
+    A[Operation still lacks a confirmed result] --> B{Result event received?}
+    B -->|Yes| C[Validate and apply result once]
+    B -->|No| D{Local waiting deadline reached?}
+    D -->|No| E[Keep waiting and schedule local check]
+    E --> B
+    D -->|Yes| F{Safe replay explicitly supported now?}
+    F -->|Yes| G[Check business rules and bounded replay policy]
+    G --> H[Replay same operation or hand off if budget exhausted]
+    F -->|No| I[Alert and save manual investigation]
+    H --> J[Handle new evidence without inventing an outcome]
+```
+
+On the publishing side, reliably save outgoing events with business results and retry delivery. On the receiving side, acknowledge only after durable handling, deduplicate business effects, and monitor dead letters. These mechanisms reduce loss but do not eliminate the need to detect overdue operations.
+
+If no query, safe replay, event recovery, or authoritative records exist, automatic resolution may be impossible. An order can still expire or be cancelled under business policy while its payment remains unknown. Continue accepting late evidence: if success is later confirmed for a cancelled order, start the appropriate compensation. Closing an alert or automatic task must not disable that result path.
+
+### Enforce transition rules at the result entry point
+
+A result handler can enforce a state machine without introducing a workflow engine or changing a legacy entity globally. Start with one controlled entry point for provider responses, messages, and retry results. The transition policy belongs there until the application can safely centralize it more broadly.
+
+#### Dispatch and permission are separate decisions
+
+A `switch` selects which result logic to run. It does not establish whether changing the current order is allowed. Make the permission check explicit before applying the selected action:
+
+```text
+Current state + incoming result + operation identity + business context
+    -> check whether the action is allowed
+    -> apply the transition and local effects
+    -> update recovery work in the same transaction
+```
+
+For example, success while the order awaits payment can schedule fulfillment. The same success after cancellation must still be recorded as payment success, but schedules compensation instead. Never discard an external financial fact merely because the order is no longer in the expected state.
+
+The previous state is not automatically an input to every decision. If arrivals from two paths mean the same thing, one current-state handler is sufficient. If the paths imply different permissions, obligations, or evidence, preserve that distinction in explicit state or operation context. Do not rely on reconstructing an undocumented rule from a history log.
+
+| Check | What it prevents |
+|---|---|
+| Result belongs to the expected operation | An old request result being applied to a newer request |
+| Current order state allows the action | Success scheduling fulfillment after cancellation |
+| Evidence is sufficient for the transition | Timeout being interpreted as confirmed failure |
+| User-action result has the required provider guarantee | Restoring submission eligibility while execution may still happen |
+| Database check and update are coordinated | Concurrent handlers both advancing the same order |
+| Local effects and recovery updates commit together | Order marked complete while required follow-up is lost |
+
+For stale or mismatched results, distinguish duplicate delivery from new evidence of an external effect. A stale success may require reconciliation or compensation even when it must not advance the current operation.
+
+#### Add rules without unexpectedly breaking old callers
+
+Adding validation to a shared `setStatus` method can change every existing caller. If the only code you control is the new result entry point, enforce the new rules there first and reuse the existing transition methods for node updates, history, and outgoing work.
+
+```mermaid
+flowchart TB
+    S[Synchronous response] --> H[Unified result handler]
+    M[Result message] --> H
+    R[Retry response] --> H
+    H --> C[Check operation identity and current state in a transaction]
+    C --> D{Result and state allow the action?}
+    D -->|Yes| T[Use existing transition logic]
+    T --> U[Commit order changes and recovery updates together]
+    D -->|Duplicate| I[Do not repeat business effects]
+    D -->|Conflict or unexpected state| V[Keep evidence and arrange resolution]
+    L[Existing callers] --> E[Existing transition entry points]
+```
+
+This is a limited guarantee: requests through the new handler obey its policy. Existing writers do not become protected merely because the new path has a lock or validation. Inventory the other writers that can modify the same records before claiming that the whole application enforces the rule.
+
+| Change | Effect on existing behavior |
+|---|---|
+| Add checks to the new result handler | Changes handling through that entry point |
+| Reuse existing transition operations | Preserves their node updates, history, and local effects; verify their assumptions |
+| Add validation to a shared entity setter | Can reject transitions previously used by old callers |
+| Add a database constraint | Affects all writes, including legacy paths and maintenance scripts |
+| Add version checks to all writers | Coordinates concurrent updates, but requires each writer to handle conflicts |
+
+#### Java example: one handler with small result methods
+
+For a few stable result types, a `switch` with named methods is sufficient. Separate handler classes become useful when individual cases have substantial logic or different dependencies; replacing a short switch with a registry does not itself improve correctness.
+
+This Spring-style example shows the boundary, not a complete application. Repository and helper methods stand for existing application operations. They must participate in the same database transaction; the helper names describe the behavior their implementations must provide.
+
+```java
+@Transactional
+public void handle(ProviderResult result) {
+    Order order = orders.findByIdForUpdate(result.orderId());
+
+    if (!matchesOperation(order, result)) {
+        // Save evidence for reconciliation; a stale charge may still be real.
+        reviews.recordMismatchedResult(order, result);
+        return;
+    }
+
+    if (order.isFinished()) {
+        // Identical resolved result: no duplicate effect.
+        // New success after cancellation: record payment and arrange compensation.
+        // Conflicting evidence: save an investigation item, do not overwrite.
+        handleFinishedOrder(order, result);
+        return;
+    }
+
+    if (!order.isAwaitingPayment()) {
+        // Do not silently drop an external result in an unexpected state.
+        reviews.recordUnexpectedState(order, result);
+        return;
+    }
+
+    switch (result.code()) {
+        case SUCCESS -> {
+            existingTransitions.confirmPaymentAndAdvance(order, result);
+            tasks.complete(result.operationId());
+        }
+        case FINAL_FAILURE -> {
+            existingTransitions.recordFailureAndAdvance(order, result);
+            tasks.complete(result.operationId());
+        }
+        case TEMPORARY_ERROR ->
+            tasks.retryOnlyIfSafeOtherwiseReview(order, result);
+        case PROCESSING ->
+            tasks.waitForMessage(result.operationId());
+        case UNKNOWN ->
+            tasks.recoverUnknownWithoutAssumingFailure(order, result);
+        case USER_ACTION_REQUIRED ->
+            handleUserActionUnderProviderContract(order, result);
+    }
+}
+```
+
+The user-action helper must check what the provider guarantees before restoring eligibility for submission. If no execution can occur until authentication, it can use a supported user interaction path. Otherwise it preserves uncertainty and hands off for resolution. A message can record that the user must act, but cannot display a challenge through a closed HTTP request.
+
+Use validation of operation correlation, amount, currency, and result authenticity before accepting provider evidence. The example's status checks do not replace those checks. The method must be called through Spring's transactional proxy; invoking it internally without an active transaction does not establish the intended transaction boundary. External provider calls happen before or after this local transaction, never while holding its row lock.
+
+#### Check current state when writing, not only when routing
+
+An in-memory check followed by an unconditional update is vulnerable to another writer changing the order in between. A database row lock protects the read-and-update transaction, but does not force every legacy writer to honor the business rule. For example, a legacy caller can read before the lock is acquired and later overwrite with stale data after the lock is released.
+
+Where appropriate, use an expected state or version in the update itself:
+
+```sql
+UPDATE orders
+SET status = :next_status,
+    version = version + 1
+WHERE id = :order_id
+  AND status = :expected_status
+  AND version = :expected_version;
+```
+
+Require exactly one affected row. Zero means the assumption no longer holds: roll back dependent local changes, reload, and reevaluate. Do not blindly retry the old decision or repeat an external call. This update should sit behind the existing transition operation if direct SQL would bypass required history or node effects.
+
+A conditional update protects the write that uses it. A later unconditional legacy update can still overwrite that value. Strong application-wide protection requires cooperating writers, suitable database constraints where the rule can be expressed, or a single authoritative transition owner. Until then, document the new handler's scope rather than promising global enforcement.
+
+#### Choose an execution tool after defining the rules
+
+Current-state dispatch, transition validation, and workflow execution are separate concerns. A handler chooses the business reaction; a state machine defines allowed changes; an execution runtime arranges durable waits, retries, and resumption. A workflow engine can provide that runtime, but cannot decide provider semantics or eliminate unknown external outcomes.
+
+For an existing system with working persistence, scheduling, and message consumption, first connect them through the unified handler and explicit task lifecycle. Consider another engine when implementing and maintaining many waits, branches, compensations, and recovery paths becomes a recurring burden. Whether transitions depend on the previous state is not the deciding criterion.
 
 ### Resolve concurrent decisions
 
@@ -404,6 +748,9 @@ The general scenario is an **asynchronous business workflow** with distributed c
 | Crash after refund decision | REFUND-1 remains discoverable |
 | Concurrent refund requests | Reserved/completed refunds stay within balance |
 | Retry exhaustion or stale worker | No invented result or overwritten newer decision |
+| Crash before send or before saving its response | Recovery work survives; possible execution is not mistaken for a definitely unsent request |
+| Missing result message and no query capability | Local deadline triggers an alert or investigation, not fabricated failure |
+| Background attempt requires user action | Automatic execution stops; no assumed live connection or invented failure |
 
 Transition tests check rules; database integration tests check atomicity/concurrency; failure injection checks recovery. Monitor unresolved age, retries, conflicts, pending work age, and review backlog. Keep transition history with identity, time, actor, and reason; a history log alone is not event sourcing.
 
