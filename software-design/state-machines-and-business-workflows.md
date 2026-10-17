@@ -236,14 +236,18 @@ flowchart TD
     A[PAYMENT-1 unresolved] --> Q[Try to retrieve provider outcome]
     Q --> K{Result known?}
     K -->|Yes| R[Apply confirmed evidence]
-    K -->|Still processing| W[Schedule next check]
-    K -->|Cannot determine| S{Safe replay supported now?}
+    K -->|Still processing| B{Check budget remains?}
+    B -->|Yes| W[Persist next check time and wait]
+    W --> Q
+    B -->|No| I[Preserve uncertainty and investigate]
+    K -->|Cannot determine| V{Collection still permitted?}
+    V -->|No| B
+    V -->|Yes| T{Documented retryable condition and retry budget remains?}
+    T -->|No| I
+    T -->|Yes| S{Safe replay supported now?}
     S -->|Yes| D[Repeat same parameters and collect:PAYMENT-1]
     D --> K
-    S -->|No| I[Preserve uncertainty and investigate]
-    W --> B{Recovery budget remains?}
-    B -->|Yes| Q
-    B -->|No| I
+    S -->|No| I
 ```
 
 | Action | Identity rule |
