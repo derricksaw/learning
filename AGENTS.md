@@ -2,7 +2,7 @@
 
 ## Project Structure
 
-This repository contains Markdown learning notes, not an executable application. Topic folders include `java/`, `software-design/`, and `production/`. `README.md` explains the learning workflow; `skills/learn/SKILL.md` defines it. Keep workflow instructions outside topic folders. There are no dedicated source, test, or asset directories.
+This repository contains Markdown learning notes, not an executable application. Topic folders include `java/`, `software-design/`, and `production/`. `README.md` explains the learning workflow; [.agents/skills/learn/SKILL.md](.agents/skills/learn/SKILL.md) defines it. Keep workflow instructions outside topic folders. There are no dedicated source, test, or asset directories.
 
 ## Development and Validation Commands
 
