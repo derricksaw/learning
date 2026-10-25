@@ -39,7 +39,7 @@ Latency is elapsed time between two chosen events. Always ask: **where does the 
 
 Exact boundaries vary by implementation. Time to first byte is different from time to receive the whole response. A controller timer may exclude filters and response serialization. A server timer may miss waiting that occurs before instrumentation begins. OpenTelemetry defines separate server and client HTTP duration metrics; inspect the instrumentation to understand what your application records. [HTTP metric conventions](https://opentelemetry.io/docs/specs/semconv/http/http-metrics/)
 
-For an illustrative user action:
+For an illustrative user action, read the nesting as contained time, not additional time:
 
 ```text
 User action to visible result:       1,200 ms
@@ -50,11 +50,9 @@ User action to visible result:       1,200 ms
   Frontend work after response:        100 ms
 ```
 
-These numbers describe deliberately non-overlapping portions of one example. The 200 ms remainder is not proof of a network problem: missing gateway work, buffering, or differences in measurement boundaries can also explain it.
+The outer pieces deliberately do not overlap. The 200 ms remainder could include transport, edge processing, buffering, or mismatched boundaries; it does not prove a network problem.
 
-Consistency makes comparisons meaningful, but the boundary determines what the comparison answers. A consistently measured 100 ms application request does not rule out a 2-second user experience. Choose the boundary for the question, then keep its definition consistent.
-
-Standards exist for specific measurements, such as HTTP client and server duration. They do not turn every measurement into one universal latency number. Prefer a label such as **HTTP server request duration, p95** over just **latency**.
+Choose the boundary for the question, then keep its definition consistent. A 100 ms application timer does not rule out a 2-second user action. Prefer a label such as **HTTP server request duration, p95** over just “latency.”
 
 Elapsed time may be spent on:
 
@@ -62,7 +60,19 @@ Elapsed time may be spent on:
 - Queues, connection acquisition, locks, and downstream responses.
 - Authentication, business logic, query execution, and serialization.
 
-Parallel operations overlap. Adding all span durations can overstate request time. Follow the **critical path**: the work and waiting that determine when the response can finish. Parent durations already include time covered by their children.
+Follow the **critical path**: the work and waiting that determine when the response can finish. Parent timers include their children; parallel work overlaps.
+
+```mermaid
+flowchart LR
+    A["Setup + database<br/>70 ms"] --> F{Start parallel calls}
+    F --> S["Shipping<br/>800 ms"]
+    F --> B["Independent check<br/>200 ms"]
+    S --> J{Both complete}
+    B --> J
+    J --> R["Serialize<br/>30 ms"]
+```
+
+In this illustrative parallel version, elapsed time is `70 + max(800, 200) + 30 = 900 ms`, assuming no extra scheduling overhead. It is not `1,100 ms`. Optimizing the 200 ms check alone cannot shorten the 800 ms branch.
 
 ## Operation timing and instrumentation
 
@@ -139,17 +149,14 @@ To continue the trace across an HTTP service boundary, instrumentation propagate
 | Exporter and optional Collector | Send and process telemetry |
 | Trace backend and viewer | Store spans and display timing and relationships |
 
-Two configurations can expose the same request differently:
+The same 900 ms request can expose different evidence:
 
-```text
-HTTP-only instrumentation:
-└─ Request: 900 ms
+| Instrumentation | What the viewer can show | What remains unknown |
+|---|---|---|
+| HTTP server only | Request: 900 ms | Internal breakdown |
+| HTTP server + JDBC + HTTP client | Request: 900 ms; query: 50 ms; shipping: 800 ms | Uninstrumented gaps and downstream internals |
 
-HTTP + JDBC + HTTP-client instrumentation:
-└─ Request: 900 ms
-   ├─ Database query: 50 ms
-   └─ Shipping call: 800 ms
-```
+More recorded detail changes the explanation available to you, not the request’s elapsed time.
 
 Automatic instrumentation typically targets supported frameworks and libraries. It does not necessarily produce a span for your `calculateDiscount()` method, database connection acquisition, or every retry attempt. Add manual spans when those distinctions matter.
 
@@ -259,6 +266,9 @@ Coverage controls which operations are recorded. Sampling controls which traces 
 
 **OTLP**, the OpenTelemetry Protocol, defines telemetry messages and their delivery. OTLP/gRPC uses binary Protocol Buffers (Protobuf). OTLP/HTTP supports binary Protobuf or a JSON representation of the same message schema. The Java setup below uses `http/protobuf`, so the actual payload is binary. [OTLP specification](https://opentelemetry.io/docs/specs/otlp/)
 
+<details>
+<summary>Expand wire-format example and field meanings</summary>
+
 Here is a readable, illustrative OTLP JSON request containing one server span. Real exports can batch multiple spans and resources.
 
 ```json
@@ -319,11 +329,16 @@ End minus start here is 900,000,000 nanoseconds, or **900 ms**. JSON represents 
 
 A database child span shares the trace ID, has its own span ID, and points to this span through `parentSpanId`. That is how a backend can reconstruct the relationship without comparing printed log lines.
 
+</details>
+
 Compatible backends understand the agreed message schema. You can often change the export destination without rewriting instrumentation, but must configure the supported protocol, signal, endpoint, and authentication. Each backend can use its own internal storage format and offer different query or display features. OTLP is an exchange protocol, not a mandated storage format.
 
 ## A practical Java tracing setup
 
 OpenTelemetry plus Jaeger is a straightforward learning setup. Spring Boot also supports a Micrometer-based integration; inspect existing configuration before combining instrumentation approaches to avoid duplicate recording. [Java agent](https://opentelemetry.io/docs/zero-code/java/agent/), [Spring Boot tracing](https://docs.spring.io/spring-boot/reference/actuator/tracing.html)
+
+<details>
+<summary>Expand local Jaeger and Java-agent setup commands</summary>
 
 For a local exercise, run Jaeger with temporary in-memory storage:
 
@@ -349,6 +364,8 @@ java -javaagent:./opentelemetry-javaagent.jar -jar app.jar
 This exercise exports traces using OTLP, the OpenTelemetry Protocol. Metrics and log exports are disabled here; ordinary application logging still works. Containerized applications need an endpoint reachable from their container rather than the host-local address shown above. [Agent setup](https://opentelemetry.io/docs/zero-code/java/agent/getting-started/)
 
 Make requests to an endpoint that accesses a database or downstream service. Open `http://localhost:16686`, choose `order-service` and a time window, find a slow trace, and inspect its waterfall. Instrument the downstream service too if you want to see its internal work. Jaeger's local storage is lost when the container stops; this is a learning setup. The commands are adapted from official guides and have not been run in this repository. [Jaeger setup](https://www.jaegertracing.io/docs/2.22/getting-started/)
+
+</details>
 
 ## Logs, metrics, and traces
 
@@ -434,7 +451,7 @@ The average is `(90 × 100 + 5 × 300 + 4 × 1,000 + 5,000) / 100 = 195 ms`.
 | p99 | 1,000 ms | 99 finish within 1 second; one takes 5 seconds |
 | Maximum | 5,000 ms | Worst observation in this window |
 
-The average looks reasonable but hides the slow tail. p95 and p99 describe that tail more clearly, while neither tells you how bad requests beyond its threshold are.
+Read the sorted positions: p95 lands on request 95 at 300 ms; p99 lands on request 99 at 1,000 ms. Request 100 still takes 5,000 ms. The average hides this tail, and a percentile does not describe the severity beyond its threshold.
 
 Always state the endpoint, boundary, time window, and population. **Application request p95 for successful GET /orders/{id} requests over five minutes** is much more meaningful than “p95 latency.” A request percentile does not mean the same percentage of distinct users had that experience. With few observations, high percentiles are unstable and may be driven by one request.
 
@@ -476,14 +493,49 @@ Tracing is a **cross-cutting concern**: it adds observation around many operatio
 
 ## Check your understanding
 
-Answer from memory, then revisit the relevant sections:
+1. A 900 ms request contains an 800 ms call and a parallel 200 ms check. Is its duration 1,000 ms?
 
-1. Why can application latency look healthy while users experience delays?
-2. What does p95 describe, and what can it hide about the slowest requests?
-3. How are spans recorded without printing timing logs?
-4. Which responsibilities belong to OpenTelemetry, Jaeger or Tempo, and Grafana?
-5. What do trace IDs and parent span IDs contribute to the exported data?
-6. What would you check when a trace contains a long request span but little child detail?
+   <details>
+   <summary>Show answer</summary>
+
+   No. Parallel durations overlap and parent timers already include children. Identify the critical path and any surrounding work instead of summing all span durations.
+
+   In the parallel example, both branches start after 70 ms of setup and database work. The 200 ms branch finishes first, but the request still waits for the 800 ms shipping call. Adding 30 ms of serialization gives 70 + max(800, 200) + 30 = 900 ms. Reducing the shorter branch alone does not shorten this critical path.
+
+   </details>
+
+1. The trace contains only a long HTTP span. Can the viewer recover the missing SQL timing?
+
+   <details>
+   <summary>Show answer</summary>
+
+   No. Check instrumentation coverage, context propagation, sampling, and export delivery. Add targeted instrumentation where needed; a backend cannot invent unrecorded operations.
+
+   First distinguish missing recording from missing delivery. The SQL operation may have no supported instrumentation, or recorded spans may have been dropped or disconnected. Database logs and pool metrics can provide other evidence, but they do not retroactively create the missing span. Add recording at the boundary needed to test the hypothesis.
+
+   </details>
+
+1. p95 is 300 ms. Does that tell you how slow the worst request was?
+
+   <details>
+   <summary>Show answer</summary>
+
+   No. In the teaching example, p95 is 300 ms while the maximum is 5,000 ms. State the population, measurement boundary, and time window. Do not average instance p95 values to obtain a service-wide p95.
+
+   Using the note’s nearest-rank example of 100 requests, the 95th sorted request takes 300 ms. The last five can still be much slower; one takes 5 seconds. The percentile describes a position, not the values beyond it. Service-wide aggregation needs the combined distribution because an instance percentile does not retain that distribution.
+
+   </details>
+
+1. Which part starts the stopwatch: OpenTelemetry instrumentation or Jaeger?
+
+   <details>
+   <summary>Show answer</summary>
+
+   Instrumentation records the operation’s timing and context inside the application. Exporters deliver the structured spans; Jaeger or Tempo stores them, and a viewer reconstructs their relationships and timing. An ordinary request ID alone does not establish parent-child span relationships.
+
+   For a query, the in-process hooks record a start, run the query, and record completion. An exporter later sends the completed span. Its trace ID groups it with the request, while its parent span ID establishes the relationship. The viewer places the resulting bars from recorded timing; it does not remotely time the query or infer its parent from log text.
+
+   </details>
 
 ## References
 

@@ -1,12 +1,10 @@
 # Java agents — purpose, lifecycle, and use cases
 
-A **Java agent is an extension packaged as a JAR that runs inside an application's JVM**. Its purpose depends on its implementation. Registering instrumentation hooks is one capability, rather than its entire job.
+A **Java agent is a JAR extension running inside the application’s JVM**. It can add observation to supported code without editing each method: tracing, coverage, or diagnostics depend on the particular agent.
 
 For a production tracing example, see [request lifecycle and tracing](../production/production-request-lifecycle.md).
 
-Some capabilities need to apply across application and library code: tracing requests, measuring execution, or tracking test coverage. An agent can add recording at those boundaries without manually editing every method.
-
-An ordinary library is typically called by your application. An agent also has a JVM-recognized entry point and access to instrumentation capabilities. Merely placing a JAR on the classpath does not activate it as an agent.
+Think of adding measuring points to a machine before it starts. The points record later activity; installing them is not the activity itself. Unlike an ordinary library call, agent startup uses a JVM-recognized entry point. Putting a JAR on the classpath alone does not activate it. The analogy describes instrumentation; agents can also perform other supported work.
 
 ## Startup and premain
 
@@ -15,6 +13,9 @@ java -javaagent:agent.jar -jar application.jar
 ```
 
 For this launch mode, the agent JAR manifest identifies its entry class through `Premain-Class`. The JVM invokes that class's `premain` before the application's `main`. Think of it as the agent's initialization entry point. [Java agent startup specification](https://docs.oracle.com/en/java/javase/25/docs/api/java.instrument/java/lang/instrument/package-summary.html)
+
+<details>
+<summary>Expand manifest, entry-point signature, and options</summary>
 
 An illustrative manifest entry:
 
@@ -31,6 +32,8 @@ public static void premain(String agentArgs, Instrumentation instrumentation)
 `Instrumentation` is from `java.lang.instrument`. The JVM supplies this object, allowing the agent to register class transformers and use supported instrumentation operations. `agentArgs` carries options from the launch command. The one-argument `premain(String agentArgs)` form is also supported. [Startup signatures](https://docs.oracle.com/en/java/javase/25/docs/api/java.instrument/java/lang/instrument/package-summary.html)
 
 Agent options can be supplied as `-javaagent:agent.jar=options`. The JVM passes the options string to `premain`; the individual agent decides how to interpret it.
+
+</details>
 
 ```mermaid
 sequenceDiagram
@@ -51,7 +54,7 @@ sequenceDiagram
 
 This diagram illustrates classes loaded after application startup. Class loading and transformation can also occur during initialization.
 
-`premain` configures behavior; it is not called again for each request. Registered transformers, inserted hooks, and supporting components can continue working after it returns. You normally configure an existing agent, rather than implement its `premain` yourself.
+`premain` initializes once; the transformer and inserted hooks keep working afterward. You normally configure an existing agent rather than implement this machinery yourself.
 
 Some JVMs support loading an agent into a running process. That mode uses `Agent-Class` in the manifest and the `agentmain` entry point. Availability and configuration depend on the JVM and runtime policy. [Dynamic agent startup](https://docs.oracle.com/en/java/javase/25/docs/api/java.instrument/java/lang/instrument/package-summary.html)
 
@@ -63,6 +66,8 @@ Some JVMs support loading an agent into a running process. That mode uses `Agent
 ## JVM instrumentation
 
 **JVM instrumentation** is the process of adding observation code to the bytecode executed by the JVM. Java's **`Instrumentation` interface** gives an agent access to services that enable this process. The interface itself does not calculate coverage or measure latency.
+
+Follow the handoff: **agent registers transformer → JVM offers class bytes → transformer returns bytes → inserted hooks run later**.
 
 The responsibilities are distinct:
 
@@ -156,7 +161,16 @@ flowchart TD
     E --> F[Return 5]
 ```
 
-This is a teaching model, not the literal generated probe layout. Calling only `deliveryFee(true)` exercises the express path; calling both values exercises both decision outcomes. The original result remains 15 or 5. A test that later fails—or checks nothing—can still increase coverage, because execution recording does not establish correctness.
+This is a teaching model, not the literal generated probe layout. With no reset between calls:
+
+| Call | Result | Express path reached? | Standard path reached? |
+|---|---|---|---|
+| Before execution | — | No | No |
+| `deliveryFee(true)` | 15 | Yes | No |
+| `deliveryFee(true)` again | 15 | Yes | No |
+| `deliveryFee(false)` | 5 | Yes | Yes |
+
+The flag records whether execution reached a path, not how often or whether an assertion passed. A failing test can therefore increase coverage. [JaCoCo counters](https://www.jacoco.org/jacoco/trunk/doc/counters.html)
 
 ### Coverage measurements
 
@@ -171,6 +185,9 @@ JaCoCo combines execution flags with analysis of the original class files to der
 | Class | At least one method in the class |
 
 A method without branches still contributes to instruction, line, method, and class coverage. Exception handling is not counted as branches in JaCoCo's branch counter. [Coverage definitions](https://www.jacoco.org/jacoco/trunk/doc/counters.html)
+
+<details>
+<summary>Expand how probes support line-level coverage</summary>
 
 JaCoCo does not normally insert one probe per source line. Consider a straight-line method:
 
@@ -196,6 +213,8 @@ This inference is a simplified model for uninterrupted, sequential execution. Br
 
 Configuring the JaCoCo Maven integration can handle agent attachment for you: prepare the agent arguments, run tests in the instrumented JVM, then generate the report. You do not implement `premain`, a transformer, or probes to use it. Recording and data output happen after initialization; report generation is a separate analysis step. [JaCoCo agent](https://www.jacoco.org/jacoco/trunk/doc/agent.html)
 
+</details>
+
 ## Runtime implications
 
 - The agent shares the application's process resources. Inserted recording, buffers, and threads can add CPU or memory overhead.
@@ -206,14 +225,38 @@ An agent is a JVM extension mechanism. AOP concerns separating cross-cutting beh
 
 ## Check your understanding
 
-Answer from memory, then revisit the relevant sections:
+1. premain has returned. Can the agent still record requests?
 
-1. How do a Java agent, `Instrumentation`, and a class transformer differ?
-2. Who invokes `premain`, and what keeps working after it returns?
-3. Who chooses JaCoCo probe positions, and what makes a probe flag true?
-4. How can a single executed probe support coverage information for several instructions or lines?
-5. Why can a failing test increase coverage, and why does high coverage not establish correctness?
-6. What does report generation need besides the `.exec` file?
+   <details>
+   <summary>Show answer</summary>
+
+   Yes. Initialization installed transformers and hooks that operate later. The JVM calls `premain`; application execution triggers the inserted recording code.
+
+   For example, a tracing agent registers a transformer at startup. When an eligible HTTP client class loads, the transformer adds hooks. Each later request executes those hooks. Returning from the initialization method does not remove the registered transformer or the recording code it installed.
+
+   </details>
+
+1. Both deliveryFee branches ran, but the test assertion is wrong. Is coverage evidence of correctness?
+
+   <details>
+   <summary>Show answer</summary>
+
+   No. Coverage records execution, not assertion quality. Probe flags can become true even when the test later fails, and repeated hits do not record elapsed time or call counts.
+
+   Suppose a test calls both delivery options but mistakenly asserts that express delivery costs 5 instead of 15. Both paths executed, so coverage can be complete even though the assertion fails. A test with no meaningful assertions can also execute those paths; correctness requires checking the intended result.
+
+   </details>
+
+1. Why is coverage.exec insufficient to produce a readable line report by itself?
+
+   <details>
+   <summary>Show answer</summary>
+
+   Report analysis needs matching original compiled classes; source files provide readable highlighting and compiled debug line information maps instructions to lines. A probe can support inference about several instructions, rather than representing one source line.
+
+   Think of the execution file as recorded marks and the class files as the map that gives those marks meaning. Report analysis combines the two. Source text makes the result readable, but source alone cannot reliably identify the compiled instructions that produced the execution data.
+
+   </details>
 
 ## References
 
@@ -223,3 +266,5 @@ Answer from memory, then revisit the relevant sections:
 - [JaCoCo Java Agent](https://www.jacoco.org/jacoco/trunk/doc/agent.html)
 - [JaCoCo: Control Flow and Probes](https://www.jacoco.org/jacoco/trunk/doc/flow.html)
 - [JaCoCo: Coverage Counters](https://www.jacoco.org/jacoco/trunk/doc/counters.html)
+
+*Commands and Java snippets are illustrative and were not executed during this note update.*

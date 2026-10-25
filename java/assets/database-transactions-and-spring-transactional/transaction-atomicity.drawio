@@ -1,0 +1,119 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" version="26.0.0">
+  <diagram id="atomicity" name="Transaction atomicity">
+    <mxGraphModel page="1" pageWidth="1240" pageHeight="720" background="#ffffff">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Transaction atomicity" style="text;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=36;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="30" width="1100" height="55" />
+        </mxCell>
+        <mxCell id="subtitle" value="Both changes commit, or neither does" style="text;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=22;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="90" width="1100" height="35" />
+        </mxCell>
+        <mxCell id="before" value="BEFORE" style="swimlane;startSize=50;rounded=1;arcSize=10;container=1;pointerEvents=0;collapsible=0;fontStyle=1;fontSize=18;fillColor=#f1f5f9;swimlaneFillColor=#ffffff;strokeColor=#64748b;strokeWidth=2;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="40" y="290" width="260" height="220" />
+        </mxCell>
+        <mxCell id="before-alice" value="Alice" style="text;align=left;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="before">
+          <mxGeometry as="geometry" x="20" y="65" width="130" height="35" />
+        </mxCell>
+        <mxCell id="before-alice-value" value="500" style="text;align=right;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="before">
+          <mxGeometry as="geometry" x="155" y="65" width="80" height="35" />
+        </mxCell>
+        <mxCell id="before-bob" value="Bob" style="text;align=left;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="before">
+          <mxGeometry as="geometry" x="20" y="110" width="130" height="35" />
+        </mxCell>
+        <mxCell id="before-bob-value" value="200" style="text;align=right;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="before">
+          <mxGeometry as="geometry" x="155" y="110" width="80" height="35" />
+        </mxCell>
+        <mxCell id="before-total" value="Total" style="text;align=left;fontSize=21;fontStyle=1;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="before">
+          <mxGeometry as="geometry" x="20" y="160" width="130" height="35" />
+        </mxCell>
+        <mxCell id="before-total-value" value="700" style="text;align=right;fontSize=21;fontStyle=1;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="before">
+          <mxGeometry as="geometry" x="155" y="160" width="80" height="35" />
+        </mxCell>
+        <mxCell id="transaction" value="ONE TRANSACTION" style="swimlane;startSize=50;rounded=1;arcSize=10;container=1;pointerEvents=0;collapsible=0;fontStyle=1;fontSize=18;fillColor=#eff6ff;swimlaneFillColor=#ffffff;strokeColor=#2563eb;strokeWidth=2;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="400" y="285" width="320" height="230" />
+        </mxCell>
+        <mxCell id="debit" value="Debit Alice 100" style="rounded=1;arcSize=12;whiteSpace=wrap;fontSize=21;fillColor=#ffffff;strokeColor=#93c5fd;strokeWidth=1.5;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="transaction">
+          <mxGeometry as="geometry" x="25" y="70" width="270" height="60" />
+        </mxCell>
+        <mxCell id="credit" value="Credit Bob 100" style="rounded=1;arcSize=12;whiteSpace=wrap;fontSize=21;fillColor=#ffffff;strokeColor=#93c5fd;strokeWidth=1.5;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="transaction">
+          <mxGeometry as="geometry" x="25" y="145" width="270" height="60" />
+        </mxCell>
+        <mxCell id="commit" value="COMMIT" style="swimlane;startSize=50;rounded=1;arcSize=10;container=1;pointerEvents=0;collapsible=0;fontStyle=1;fontSize=18;fillColor=#f0fdf4;swimlaneFillColor=#ffffff;strokeColor=#15803d;strokeWidth=2;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="940" y="170" width="260" height="220" />
+        </mxCell>
+        <mxCell id="commit-alice" value="Alice" style="text;align=left;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="commit">
+          <mxGeometry as="geometry" x="20" y="65" width="130" height="35" />
+        </mxCell>
+        <mxCell id="commit-alice-value" value="400" style="text;align=right;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="commit">
+          <mxGeometry as="geometry" x="155" y="65" width="80" height="35" />
+        </mxCell>
+        <mxCell id="commit-bob" value="Bob" style="text;align=left;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="commit">
+          <mxGeometry as="geometry" x="20" y="110" width="130" height="35" />
+        </mxCell>
+        <mxCell id="commit-bob-value" value="300" style="text;align=right;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="commit">
+          <mxGeometry as="geometry" x="155" y="110" width="80" height="35" />
+        </mxCell>
+        <mxCell id="commit-total" value="Total" style="text;align=left;fontSize=21;fontStyle=1;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="commit">
+          <mxGeometry as="geometry" x="20" y="160" width="130" height="35" />
+        </mxCell>
+        <mxCell id="commit-total-value" value="700" style="text;align=right;fontSize=21;fontStyle=1;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="commit">
+          <mxGeometry as="geometry" x="155" y="160" width="80" height="35" />
+        </mxCell>
+        <mxCell id="rollback" value="ROLLBACK" style="swimlane;startSize=50;rounded=1;arcSize=10;container=1;pointerEvents=0;collapsible=0;fontStyle=1;fontSize=18;fillColor=#fff7ed;swimlaneFillColor=#ffffff;strokeColor=#c2410c;strokeWidth=2;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="940" y="460" width="260" height="220" />
+        </mxCell>
+        <mxCell id="rollback-alice" value="Alice" style="text;align=left;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="rollback">
+          <mxGeometry as="geometry" x="20" y="65" width="130" height="35" />
+        </mxCell>
+        <mxCell id="rollback-alice-value" value="500" style="text;align=right;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="rollback">
+          <mxGeometry as="geometry" x="155" y="65" width="80" height="35" />
+        </mxCell>
+        <mxCell id="rollback-bob" value="Bob" style="text;align=left;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="rollback">
+          <mxGeometry as="geometry" x="20" y="110" width="130" height="35" />
+        </mxCell>
+        <mxCell id="rollback-bob-value" value="200" style="text;align=right;fontSize=21;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="rollback">
+          <mxGeometry as="geometry" x="155" y="110" width="80" height="35" />
+        </mxCell>
+        <mxCell id="rollback-total" value="Total" style="text;align=left;fontSize=21;fontStyle=1;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="rollback">
+          <mxGeometry as="geometry" x="20" y="160" width="130" height="35" />
+        </mxCell>
+        <mxCell id="rollback-total-value" value="700" style="text;align=right;fontSize=21;fontStyle=1;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="rollback">
+          <mxGeometry as="geometry" x="155" y="160" width="80" height="35" />
+        </mxCell>
+        <mxCell id="commit-caption" value="Accept both changes" style="text;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=17;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="940" y="395" width="270" height="30" />
+        </mxCell>
+        <mxCell id="rollback-caption" value="Discard both pending changes" style="text;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=16;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="940" y="685" width="280" height="30" />
+        </mxCell>
+        <mxCell id="alternative" value="Alternative&lt;br/&gt;outcomes" style="text;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=17;;html=1;fontFamily=Arial;fontColor=#0f172a;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="740" y="445" width="160" height="60" />
+        </mxCell>
+        <mxCell id="before-tx" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#334155;strokeWidth=2;endArrow=block;endSize=9;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="before" target="transaction">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="commit-path" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#334155;strokeWidth=2;endArrow=block;endSize=9;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="transaction" target="commit">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="810" y="400" />
+              <mxPoint x="810" y="280" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rollback-path" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#334155;strokeWidth=2;endArrow=block;endSize=9;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="transaction" target="rollback">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="900" y="400" />
+              <mxPoint x="900" y="570" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
