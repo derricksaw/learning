@@ -23,5 +23,40 @@ services:
       interval: 2s
       timeout: 3s
       retries: 15
+  api-a:
+    profiles: [app]
+    build: .
+    image: order-lab-api:local
+    environment: &api-environment
+      SERVER_ADDRESS: 0.0.0.0
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:postgresql://postgres:5432/orders
+      DB_USERNAME: orders
+      DB_PASSWORD: ${DB_PASSWORD:?Run ./scripts/init-env.sh first}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  api-b:
+    profiles: [app]
+    image: order-lab-api:local
+    build: .
+    environment: *api-environment
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  frontend:
+    profiles: [app]
+    build: ./frontend
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      api-a: {condition: service_healthy}
+      api-b: {condition: service_healthy}
 volumes:
   orders-data:

@@ -1,97 +1,97 @@
-# Order service
+# Order Lab
 
-A prepared application for focused practice. Codex supplies supporting code and tests; you complete the topic-related gaps and ask for review.
+A working operations workspace for learning transactions, concurrency, and durable idempotency. The React console talks to two Spring Boot instances sharing PostgreSQL and Redis. Your completed implementations are preserved; exercise 005 deliberately leaves three backend TODOs.
 
-**Stack:** Java 21, Spring Boot 4.1.2, Maven Wrapper, Spring MVC, JDBC, PostgreSQL 17, Flyway, and Lombok.
+## Run with Docker Compose
 
-## Invoice idempotency and Redis ownership
-
-[005 — Create an invoice once and coordinate rendering](requirements/005-invoice-idempotency-and-redis-lease.md) supplies invoice/document endpoints, PostgreSQL storage, and a Redis service in Compose. Complete three inline TODOs: insert an invoice once, acquire an expiring Redis lease, and release only when its owner token matches. The text renderer is a demo, not a PDF or billing integration. Review is the default; unfinished paths return `501`. Redis listens on `127.0.0.1:6380`.
-
-## Distributed concurrency practice
-
-[004 — Reject stale stock corrections across instances](requirements/004-distributed-stock-corrections.md) adds an inventory version and a stock-correction endpoint. `InventoryRepository.replaceIfVersionMatches` passed code review: it checks the expected version and changes stock and version in one write. Exercise 004 is complete by inspection; the optional two-process walkthrough has not been run.
-
-## CAS practice
-
-[003 — Protect carrier calls with local CAS capacity](requirements/003-claim-local-capacity.md) now connects your reviewed CAS component to `POST /orders/{orderId}/shipping-labels`. The supplied carrier simulates slow calls and purchases no postage. `ShippingLabelService.createWithCapacity` has passed code review: it claims a slot before calling the carrier, rejects excess requests with `503`, and releases the claim on success or failure. Runtime verification of this implementation remains pending. The requirement includes unit checks, HTTP checks, and a manual contention walkthrough.
-
-## Current review
-
-[002 — Lock inventory before adjusting stock](requirements/002-lock-inventory-adjustments.md) has passed code review by inspection: `InventoryRepository.findForAdjustment` now locks the row before the supplied service calculates, writes, and records the adjustment. Its completed exercise marker has been removed. Runtime checks remain pending.
-
-[001 — Place orders without overselling](requirements/001-place-orders.md) also has a code-reviewed implementation. Its runtime checks and restart demonstration remain pending.
-
----
-
-## Run the checks first
-
-From this directory:
+Requires Docker Engine with Compose, and Python 3 to generate a local password. From this directory:
 
 ```bash
-# Prepared endpoints, migrations, validation, and database reads.
-./mvnw -Dtest=OrderServiceApplicationTests,ScaffoldTests,AdjustmentSupportTests test
-
-# Verify the locking implementation when ready.
-./mvnw -Dtest=LockingExerciseTests test
-
-# Prior transaction exercise, when you want runtime confirmation.
-./mvnw -Dtest=TransactionExerciseTests test
+./scripts/init-env.sh
+docker compose --profile app up -d --build --wait
 ```
 
-Tests automatically start a temporary **real PostgreSQL 17.11** process using [embedded-postgres](https://github.com/zonkyio/embedded-postgres). They use random ports, run migrations, and reset fixtures per test. Docker is not required for tests. The first run downloads native binaries; use a regular OS account because PostgreSQL refuses to run as root. Supported platforms depend on the library's native binary availability.
-
-The transaction exercise checks placement and rollback; the locking exercise checks row protection, adjustment audits, and competing operations. Tests are not transaction-wrapped: assertions inspect persisted state after HTTP requests finish. The failure hook is test-only and cannot be armed through the API.
-
-`./mvnw verify` includes all exercises, including the reviewed shipping-label integration in exercise 003. Its result has not been verified after the latest learner changes; code review alone does not establish a test pass.
-
----
-
-## Run the application locally
-
-Install Java 21+ and Docker Compose, or provide an existing PostgreSQL database. Choose a local password outside Git:
+Open **http://localhost:5173**. API A is on `localhost:8080`, API B on `localhost:8081`. Dependencies bind only to loopback: PostgreSQL `5433`, Redis `6380`. The generated `.env` is ignored and is never committed. The first build downloads Java and Node dependencies.
 
 ```bash
-export DB_PASSWORD='choose-a-local-development-password'
-docker compose up -d --wait
-./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+docker compose --profile app logs -f --tail=80
+docker compose --profile app down
 ```
 
-The database listens on `127.0.0.1:5433`; the API listens on `127.0.0.1:8080`. `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` configure an existing database instead. Default database/user are both `orders`. Only the `dev` profile seeds product 1 with stock 3, once, through a migration.
+Stopping preserves the database volume. `docker compose down -v` deletes it; that is a deliberate reset, not a normal stop command. Do not run the Compose stack and rootless stack simultaneously on the same ports.
+
+## Run without administrator access
+
+On Debian 13 with Java 21+, Node 22.12+ (Node 24 recommended), Python 3, `apt-get`, and `dpkg-deb`:
 
 ```bash
-curl --fail http://127.0.0.1:8080/actuator/health
-curl --fail http://127.0.0.1:8080/inventory/1
-curl -i -H 'Content-Type: application/json' \
-  -d '{"productId":1,"quantity":2}' http://127.0.0.1:8080/orders
+./scripts/bootstrap-local.sh
+./scripts/dev.sh up
 ```
 
-The new adjustment endpoint accepts `POST /inventory/1/adjustments` with `{"delta":-2,"reason":"damaged stock"}`. Successful adjustments can be read at `GET /inventory/adjustments/{adjustmentId}`.
-
-Health should report `UP`; inventory initially reports 3. Both POST endpoints now have code-reviewed implementations; their runtime checks remain pending. A successful response contains a UUID order ID; read it at `GET /orders/{orderId}`.
-
-Restarting the application or `docker compose down` preserves the database volume. For independent development examples, explicitly reset only the local fixture:
+The bootstrap downloads and extracts PostgreSQL 17 and Redis into ignored `.local/tools/` without installing system services. Redis comes from the host's Debian package repository; the validated local version is 8.0.2 and supports the same Lua-based protocol as Compose's Redis 7.4. The runner initializes a private database with a generated password, starts both APIs, and serves the frontend at **http://localhost:5173**. It keeps credentials, data, PID records, and logs under `.local/`.
 
 ```bash
-docker compose exec -T postgres psql -U orders -d orders \
-  -c 'TRUNCATE invoice_document, order_invoice, inventory_adjustment, purchase_order, inventory; INSERT INTO inventory (product_id, available) VALUES (1, 3);'
+./scripts/dev.sh status
+./scripts/dev.sh restart
+./scripts/dev.sh down
 ```
 
-That command deletes local practice orders and resets inventory; do not use it against another environment. Tests use their own temporary database, not the development volume.
+Restart after backend changes. The frontend has live reload. The runner verifies process identity before stopping its background process groups; it does not stop system-wide PostgreSQL or Redis services. See the [runbook](docs/runbook.md) for recovery, logs, and configuration.
 
-To package for a manual run without executing tests:
+![Order Lab operations workspace](docs/assets/workspace-desktop.png)
+
+[Mobile preview](docs/assets/workspace-mobile.png) · Screenshots show actual local development data.
+
+## Use the workspace
+
+- **Overview:** live stock, order and invoice totals, recent orders, and this browser's action feed.
+- **Inventory:** search products and record signed stock adjustments with a reason.
+- **Orders:** place an order through the real reservation transaction; request a simulated shipping label or an invoice.
+- **Invoices:** inspect stored invoices and generate/open simulated text documents after exercise 005 is implemented.
+- **Concurrency lab:** capture inventory through A and B, save A's correction, then observe B's stale-version conflict. These actions change local stock.
+- **Learning guide:** find the five exercises and their implementation targets.
+
+The instance selector routes requests explicitly through A or B. Both see the same database. All inventory/order mutations use the existing exercise services; the frontend does not simulate a successful save or hide server failures. Exercise 005 returns `501 / EXERCISE_INCOMPLETE` until its TODOs are solved. No real postage, billing, or legal invoice generation occurs.
+
+The development profile seeds a four-product catalog once. Existing stock and orders survive restarts; no startup script silently clears learner data.
+
+## Project layout
+
+```text
+frontend/                 React + TypeScript + Vite console, Docker/Nginx deployment
+src/main/java/            Spring API, exercise implementations and focused TODOs
+src/main/resources/db/    Flyway schema migrations and development-only fixtures
+src/test/                 Existing checks; no new exercise tests are required
+requirements/             Stable exercise IDs, targets and review criteria
+docs/                     Architecture, API contract and operating instructions
+scripts/                  Rootless bootstrap, lifecycle runner and Compose environment setup
+compose.yaml              Shared dependencies and optional full-app profile
+Dockerfile                Backend build and non-root runtime image
+```
+
+The backend remains in its existing location to preserve source paths and learner work. This project shares the parent learning repository's Git history.
+
+## Build and validate
 
 ```bash
+# Frontend dependency installation and type-checked production build
+npm --prefix frontend ci
+npm --prefix frontend run build
+
+# Backend production package, without running tests
 ./mvnw -DskipTests package
-java -jar target/order-service-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
+
+# Existing regression suite, when wanted
+./mvnw verify
 ```
 
-Packaging with skipped tests does not complete the requirement. After solving it, use `./mvnw verify` normally. Use `mvnw.cmd` on Windows.
+Review is the default exercise verification. CI builds the frontend and runs the existing backend suite; no new exercise tests were added. The current verification record is in [docs/verification.md](docs/verification.md).
 
-## Review and progress
+To develop against containerized dependencies only, start `docker compose up -d --wait` without the `app` profile, export your database password from your local configuration, run the APIs with the `dev` profile on 8080 and 8081, and run `npm --prefix frontend run dev`. Vite forwards `/api/a` and `/api/b`; Nginx provides the same routes in Compose. Both use a same-origin API boundary, so there is no permissive CORS configuration.
 
-Track the task in the [requirements index](requirements/README.md). After completing the marked gaps, run both sets of checks and explain how the boundary and stock-write behavior protect the rules. Request review before marking the requirement done.
+## Design and exercises
 
-Future exercises can reuse this application or introduce another application when the topic requires a service boundary. All projects share the parent repository's Git history.
+Read the [design document](docs/design.md), [API contract](docs/api.md), and [runbook](docs/runbook.md). Follow the [requirements index](requirements/README.md); start with [005 — Invoice idempotency and Redis ownership](requirements/005-invoice-idempotency-and-redis-lease.md) for the current unfinished exercise.
 
-References: [Spring JDBC](https://docs.spring.io/spring-framework/reference/data-access/jdbc/core.html), [Flyway startup migrations](https://docs.spring.io/spring-boot/how-to/data-initialization.html), [Lombok setup](https://projectlombok.org/setup/maven).
+This is a loopback-only development workspace. Before exposing it publicly, add authentication, authorization, TLS, and deployment-specific secret management. Those are not supplied by the local UI.

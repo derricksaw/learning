@@ -31,3 +31,11 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local development tools, database files, credentials and process logs
+.local/
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+
+__pycache__/

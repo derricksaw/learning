@@ -2,6 +2,9 @@
 
 Personal learning notes, organized into category folders, with runnable practice applications under `practice/`, starting with the [Spring Boot order service](practice/order-service/README.md).
 
+The [Order Lab workspace](practice/order-service/README.md) includes a React frontend, two Spring API instances, PostgreSQL and Redis. See its [design document](practice/order-service/docs/design.md) and [runbook](practice/order-service/docs/runbook.md). From `practice/order-service/`, use `./scripts/init-env.sh` and `docker compose --profile app up -d --build --wait`, or the documented rootless runner. Open **http://localhost:5173**.
+
+
 ## Note index
 
 Use this index to find likely matches, then search the relevant notes for detail. It is a discovery aid, not a substitute for checking the current files.

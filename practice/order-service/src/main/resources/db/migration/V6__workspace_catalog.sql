@@ -1,0 +1,6 @@
+ALTER TABLE inventory
+    ADD COLUMN product_name VARCHAR(120) NOT NULL DEFAULT 'Practice item',
+    ADD COLUMN category VARCHAR(80) NOT NULL DEFAULT 'General',
+    ADD COLUMN reorder_point INTEGER NOT NULL DEFAULT 5 CHECK (reorder_point >= 0);
+ALTER TABLE purchase_order
+    ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;

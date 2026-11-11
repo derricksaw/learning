@@ -14,7 +14,7 @@ Run note-maintenance commands from the repository root:
 - `git diff -- AGENTS.md`: review contributor-guide changes.
 - `git status --short`: identify modified and untracked files.
 
-For the application, run `./mvnw verify` or `./mvnw spring-boot:run` from `practice/order-service/`; read its local `AGENTS.md` first. Notes have no build or formatter. Review newly created, untracked files directly; ordinary `git diff` does not show their contents.
+For the application, use `scripts/dev.sh` or the documented Compose setup in `practice/order-service/`; read its local `AGENTS.md` first. Run `./mvnw verify` for existing backend checks and `npm --prefix frontend run build` for the frontend. New exercises use code review by default; add exercise tests only when requested. Notes have no build or formatter. Review newly created, untracked files directly; ordinary `git diff` does not show their contents.
 
 ## Markdown Style and Naming
 
@@ -30,7 +30,7 @@ For `/learn`, `$learn`, or learning-note requests, read the repository's learn s
 
 ## Practice workflow
 
-New technical learning should produce or refine a focused exercise in a suitable practice application. Build supporting application code, setup, fixtures, and tests so the learner can work directly on a small set of topic-related gaps. Explain unfamiliar framework syntax directly; guide and review the target problem without filling its solution unless asked. Additional applications or services are allowed when the topic requires separate boundaries, including microservices. Share the parent Git history and inspect existing learner work before editing.
+New technical learning should produce or refine a focused exercise in a suitable practice application. Build supporting application code, setup, and fixtures so the learner can work directly on a small set of topic-related gaps. Explain unfamiliar framework syntax directly; guide and review the target problem without filling its solution unless asked. Additional applications or services are allowed when the topic requires separate boundaries, including microservices. Share the parent Git history and inspect existing learner work before editing.
 
 ## Commits and Pull Requests
 
