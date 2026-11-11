@@ -2,11 +2,11 @@
 
 ## Project Structure
 
-This repository contains Markdown learning notes, not an executable application. Topic folders include `java/`, `software-design/`, and `production/`. `README.md` explains the learning workflow; [.agents/skills/learn/SKILL.md](.agents/skills/learn/SKILL.md) defines it. Keep workflow instructions outside topic folders. There are no dedicated source, test, or asset directories.
+This repository contains Markdown learning notes and practice applications under `practice/`, starting with the Spring Boot application at `practice/order-service/`. Topic folders include `java/`, `software-design/`, and `production/`. `README.md` explains the learning workflow; [.agents/skills/learn/SKILL.md](.agents/skills/learn/SKILL.md) defines it. The application has its own source, test, and requirements directories and shares this repository’s Git history. Keep workflow instructions outside topic folders.
 
 ## Development and Validation Commands
 
-Run commands from `/workspace/learning`:
+Run note-maintenance commands from the repository root:
 
 - `rg --files -g '*.md'`: list notes and documentation.
 - `rg -n -i 'transaction' java software-design production`: find related material before adding content.
@@ -14,7 +14,7 @@ Run commands from `/workspace/learning`:
 - `git diff -- AGENTS.md`: review contributor-guide changes.
 - `git status --short`: identify modified and untracked files.
 
-No build, application server, test suite, or formatter is configured. Review newly created, untracked files directly; ordinary `git diff` does not show their contents.
+For the application, run `./mvnw verify` or `./mvnw spring-boot:run` from `practice/order-service/`; read its local `AGENTS.md` first. Notes have no build or formatter. Review newly created, untracked files directly; ordinary `git diff` does not show their contents.
 
 ## Markdown Style and Naming
 
@@ -27,6 +27,10 @@ Preview Markdown, check relative links, and validate Mermaid syntax when changin
 ## Learning Workflow
 
 For `/learn`, `$learn`, or learning-note requests, read the repository's learn skill. Search existing notes and integrate matching material without duplication. Create new notes directly in the closest category, choosing a descriptive filename without requiring preview or location approval. Validate the result and stage the created or updated note with `git add <path>` so new files are tracked. Do not move, rename, or delete notes without authorization.
+
+## Practice workflow
+
+New technical learning should produce or refine a focused exercise in a suitable practice application. Build supporting application code, setup, fixtures, and tests so the learner can work directly on a small set of topic-related gaps. Explain unfamiliar framework syntax directly; guide and review the target problem without filling its solution unless asked. Additional applications or services are allowed when the topic requires separate boundaries, including microservices. Share the parent Git history and inspect existing learner work before editing.
 
 ## Commits and Pull Requests
 

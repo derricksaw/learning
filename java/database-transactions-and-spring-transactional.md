@@ -167,6 +167,20 @@ PostgreSQL maps Read Uncommitted to Read Committed and prevents phantoms at Repe
 | Constraint | Rule fits a declared schema constraint | Protects only the rule actually declared |
 | Serializable | Rule spans rows or predicates | Handle whole-transaction retries |
 
+#### Explicit locks for a read-dependent decision
+
+A conditional `UPDATE` already takes a write lock. PostgreSQL and MySQL InnoDB both coordinate conflicting updates; the exact lock scope, waits, and possible aborts depend on the database, engine, and isolation level. [PostgreSQL row locks](https://www.postgresql.org/docs/17/explicit-locking.html), [InnoDB isolation](https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html)
+
+When an adjustment must record the original balance, protect **read → calculate → write → audit** inside one transaction. An ordinary read does not reserve the row. A locking read makes a competing writer wait; after the first transaction completes, the next decision uses the appropriate current balance under Read Committed.
+
+| Step | Adjustment A: −2 | Adjustment B: −2 |
+|---|---|---|
+| Lock and read stock 3 | Reads 3 while holding the row | Waits for that row |
+| Write and commit | Writes 1 and audit 3 → 1; releases lock | Can proceed |
+| Next decision | Finished | Reads 1; rejects the adjustment |
+
+The lock lasts through transaction completion, not just the read method. Ordinary snapshot readers may still read committed versions. Practise this in [002 — Lock inventory before adjusting stock](../practice/order-service/requirements/002-lock-inventory-adjustments.md).
+
 For multi-row locking, use a consistent order to reduce **deadlocks**. T1 holding row 1 while waiting for row 2, and T2 holding row 2 while waiting for row 1, creates a wait cycle. Retry a confirmed database abort as a complete operation. [Locking](https://www.postgresql.org/docs/18/explicit-locking.html)
 
 <details>

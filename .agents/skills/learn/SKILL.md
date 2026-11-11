@@ -1,6 +1,6 @@
 ---
 name: learn
-description: Maintain this repository's categorized Markdown learning notes when the user invokes /learn or asks to capture or improve learning notes. Search related notes, create or enhance the right note directly, and stage the result in Git.
+description: Maintain this repository's learning notes and prepare focused implementation exercises in its practice applications. Use for /learn or requests to capture or improve learning notes. Stage task-related notes and requirements in Git.
 ---
 
 # Learn
@@ -37,6 +37,19 @@ Treat production use as the purpose of learning each technical concept. Definiti
 - Keep illustrative simplifications explicit. Do not present a sketch as production-ready; identify consequential omissions without growing the example into an entire application. Link to an existing detailed implementation when it already supplies the practical explanation.
 
 Integrate production reasoning beside the concept it explains. Avoid a detached checklist or a final “production considerations” paragraph that leaves the main explanation purely theoretical. Scale detail to the concept; do not force every topic into an identical template.
+
+## Turn learning into focused implementation exercises
+
+Follow the cycle: learn a concept → prepare a working application around focused gaps → learner completes the gaps → review observable results. Discover practice applications, their stacks, and requirements from the root `README.md` and local guidance.
+
+- Inspect existing requirements and the learner's work first. Reuse suitable applications; add another application or service when a topic needs a distinct runtime or service boundary, such as a microservice interaction. Keep related projects in this repository's Git history rather than creating nested repositories.
+- Build the supporting pieces needed to reach the topic quickly: configuration, endpoints, data models, storage setup, fixtures, and wiring. Preserve useful learner work and adapt around it. Do not make unrelated boilerplate the learner's prerequisite.
+- Leave a small, clearly marked set of unresolved decisions or implementation points directly related to the topic. Identify their files, expected behavior, and acceptance criteria without supplying the target solution. Prefer code that compiles and an application that starts; make incomplete paths explicit rather than silently reporting success or using a fake implementation.
+- Always place a `TODO` comment directly at every pending exercise implementation site, inside the method, block, or configuration the learner must complete. Include the exercise ID and a concise description of the required behavior without giving the solution. A requirements document or an `EXERCISE` marker alone does not replace this inline TODO. Remove the TODO after the implementation is accepted in review.
+- Use code review as the default exercise verification: inspect the saved implementation, trace normal and competing operations, and explain how its mechanism preserves the required behavior. Do not create automated tests for every exercise or rerun suites on each review. Add exercise tests only when the user requests them. Preserve existing tests and use relevant existing checks when validating supporting application changes; optional manual walkthroughs can illustrate runtime behavior. Record whether evidence comes from inspection or execution, and do not claim unobserved runtime results.
+- Explain unfamiliar framework APIs, annotations, tooling, and syntax directly. Use hints and questions for the learning problem and review the learner's implementation; give the target solution only when explicitly requested. A review should identify behavior, mechanism, and verification, not just whether code compiles.
+- Give each exercise a stable ID, link its learning note, and record scope, provided pieces, learner-owned gaps, dependencies, and status in the relevant requirement index. Refine matching exercises instead of duplicating them, and mark completion only when implementation and evidence support it.
+- Stage task-related notes, support code, tests, and requirements. Note-only wording or visual changes do not need a new exercise. If a topic has no meaningful application use, explain whether a separate focused exercise is more appropriate instead of inventing a contrived feature.
 
 ## Explain visually first
 
@@ -108,4 +121,4 @@ Check the final note for duplication, readable Markdown, accurate internal links
 
 Ask during review: could a learner explain the concept from the visuals and their captions, identify how to implement it in production, and describe evidence that it works? If not, improve the visual explanation and supporting prose rather than simply adding more text. Ensure analogies state their limits and prose does not repeat diagram labels.
 
-Report the created or updated file with a clickable link, briefly describe what changed, and state that it is staged. Include links to useful companion visuals or interactive examples. Do not commit or push unless requested.
+Report the created or updated file with a clickable link, briefly describe what changed, and state that it is staged. When a practice requirement was added or refined, link it and identify the learner’s next task. Include links to useful companion visuals or interactive examples. Do not commit or push unless requested.

@@ -211,6 +211,91 @@ Submission safely publishes prior actions to an executor task, and successful re
 
 For invariants shared across processes, a Java lock is insufficient. Use appropriate [database concurrency controls](database-transactions-and-spring-transactional.md#5-choose-a-concurrency-tool).
 
+### Choose a lock or atomic mechanism by its boundary
+
+> First identify the state and the rule that must hold. Then choose where competing operations meet: one shared Java object, the database, or a shared coordination service. CAS is an atomic primitive, not a lock you acquire and release.
+
+Think of stock 3 and two requests for 2. The rule is **accept at most one request and leave stock 1**. A local capacity counter can enforce the equivalent rule for one process, but cannot reserve database stock across several application instances.
+
+```mermaid
+flowchart TD
+    A[Identify shared state and invariant] --> B{Where do writers meet?}
+    B --> C[One Java object]
+    B --> D[Database]
+    B --> E[Several services or external resource]
+    C --> F[Mutex for a critical section]
+    C --> G[CAS for one conditional state change]
+    C --> H[Read-write lock for read-heavy mutable state]
+    D --> I[Conditional update or version check]
+    D --> J[Row lock for read-decide-write]
+    E --> K[Shared coordination plus stale-owner protection]
+```
+
+The branches describe scope, not a performance ranking. Database rows can be locked by writers from many processes; a Java lock coordinates only callers using that same lock object.
+
+#### Mutual exclusion, shared readers, and permits
+
+| Mechanism | How it works | Apply it to | Main cost or trap |
+| --- | --- | --- | --- |
+| `synchronized` monitor | One owner enters the protected section; exit releases ownership, including exceptional exit | A short update involving several related in-memory fields | All relevant readers and writers must use the same monitor |
+| `ReentrantLock` | Explicit exclusive ownership, with reentry by the owning thread | The same invariants when timed or interruptible acquisition is needed | Release in `finally`; reentrancy does not prevent cycles between different locks |
+| `ReentrantReadWriteLock` | Multiple readers share access; a writer needs exclusive access | A mutable in-memory routing table with substantial reads and occasional updates | Tiny reads may not justify overhead; holding a read lock while trying to acquire the write lock cannot upgrade successfully |
+| `StampedLock` | Read/write modes plus optimistic reads checked with a stamp | A carefully encapsulated, frequently read pair of scalar values | Optimistic reads may see inconsistent fields; validate before using the snapshot; it is not reentrant |
+| `Semaphore` | Acquire a permit from a count; release restores a permit | Limit this process to 20 simultaneous calls to a dependency | A capacity limit does not protect each operation's internal data; release only after successful acquisition |
+
+A mutex protects **one operation at a time**. A semaphore with 20 permits admits **up to 20 operations**. Semaphores have no thread ownership; accidental extra releases can inflate capacity. Java provides these mechanisms, but the application chooses the protected scope and lifetime. [Java locks](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/locks/package-summary.html), [Semaphore](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/Semaphore.html)
+
+For a routing table, readers R1 and R2 can hold the read lock together. Writer W waits until both release, then replaces the entries under the write lock. Future readers see the completed update. A reader must not mutate the table or retain an exposed mutable value for later unsynchronized use. Check that concurrent readers never observe a partially updated route pair. [Read-write lock contract](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/locks/ReentrantReadWriteLock.html)
+
+For a `StampedLock` snapshot, copy both fields into local variables, then validate the stamp. If validation fails, discard the pair and reread under a read lock. Do not perform an external action using an unvalidated pair: validation cannot undo that action. Its optimistic read is different from a database versioned write. [StampedLock contract](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/locks/StampedLock.html)
+
+Reentrant means the owner can acquire the same lock again; it must release the corresponding acquisitions. Fairness is a separate policy: a fair `ReentrantLock` favours longer-waiting contenders, potentially reducing throughput. Its untimed `tryLock()` can still barge. Neither fair locking nor a timeout makes a multi-lock protocol deadlock-free; use a consistent acquisition order. [ReentrantLock contract](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/locks/ReentrantLock.html)
+
+#### CAS: detect interference at the update
+
+**Compare-and-set** atomically performs “if current equals expected, replace it with proposed.” The comparison and replacement are indivisible. A separate comparison followed by an ordinary write does not provide this guarantee. The earlier counter example shows the primitive; here is the stock-shaped decision for a local capacity budget:
+
+| Step | Task A requests 2 | Task B requests 2 | Remaining |
+| --- | --- | --- | --- |
+| 1 | Reads 3, proposes 1 | Reads 3, proposes 1 | 3 |
+| 2 | CAS `(3 → 1)` succeeds | | 1 |
+| 3 | | CAS `(3 → 1)` fails | 1 |
+| 4 | | Rereads 1; rejects request for 2 | 1 |
+
+A CAS loop must recompute the business decision after failure. Repeating the stale proposal, or replacing the failed CAS with `set`, loses protection. The successful CAS is the instant at which the claim takes effect. Java's `AtomicInteger.compareAndSet` supplies atomicity and documented memory effects; the application supplies validation and retry logic. See [AtomicInteger](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/atomic/AtomicInteger.html).
+
+**CAS is not the opposite of every lock.** A lock implementation can itself use atomic state transitions to acquire ownership, then queue or park contenders. A user-written CAS loop retries instead of owning a critical section; it does not make network calls or a multi-step database transaction atomic. Busy-spinning repeatedly checks state and consumes CPU; parking suspends a waiter. Do not build a spinlock around slow I/O. These are mechanisms beneath the higher-level choice to coordinate or retry.
+
+CAS also checks the current value, not its history. In an **ABA** sequence, A reads a reference X, B replaces X with Y and later restores X, and A's CAS expecting X can succeed. That is harmless if only the current count matters, but dangerous when a data-structure algorithm assumes the referenced node has not changed since the read. An atomically checked reference-and-stamp can detect such changes if every writer advances the stamp and wraparound is considered. [AtomicStampedReference](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/atomic/AtomicStampedReference.html)
+
+Practise this in [003 — Protect carrier calls with local CAS capacity](../practice/order-service/requirements/003-claim-local-capacity.md). Your reviewed CAS component now supports a shipping-label admission exercise: the reviewed service holds a claim throughout a carrier call, rejects excess requests, and restores capacity on failure. For ordinary capacity limiting, prefer the standard semaphore when it matches the required contract.
+
+#### Database locks and optimistic version checks
+
+| Mechanism | What coordinates competing writers | Apply it to | Failure handling |
+| --- | --- | --- | --- |
+| Pessimistic row lock, `SELECT ... FOR UPDATE` | Transaction owns a conflicting row lock through completion | Read stock, calculate an adjustment, and record exact before/after balances | Bound waits; handle deadlocks and transaction aborts |
+| Conditional `UPDATE` | Database checks the predicate and changes the row in one statement; writes still lock | Deduct quantity only if enough stock remains | Check affected rows; zero means the requested condition was not met or no row matched |
+| Optimistic version check | Write includes the version read earlier and increments it on success | Reject a stale administrative edit | On conflict, reload and reconsider; do not blindly replay a stale absolute value |
+| Shared row lock, such as PostgreSQL `FOR SHARE` | Compatible readers share locks while conflicting writes wait | A transaction must prevent selected rows changing during a dependent operation | Lock compatibility depends on the exact mode; ordinary MVCC reads do not need these locks |
+| Table lock | Coordinates access at table scope according to its mode | Maintenance requiring table-wide exclusion | Broad blocking; choose the least restrictive sufficient mode |
+| Advisory lock | Callers agree on a shared key and acquire it in PostgreSQL | Coordinate a job per customer when no suitable row represents the job | Nonparticipants can ignore it; choose transaction or session lifetime deliberately |
+
+PostgreSQL has several row-lock strengths; `FOR UPDATE` is not a universal “block all reads” switch. Existing [database concurrency notes](database-transactions-and-spring-transactional.md#5-choose-a-concurrency-tool) explain the inventory SQL and isolation behavior. Its [locking documentation](https://www.postgresql.org/docs/17/explicit-locking.html) defines mode compatibility and advisory lock lifetime.
+
+A database version check resembles CAS logically, but executes as a database operation with its own locks and transaction semantics. Optimistic locking does **not** mean the database never takes locks. Constraints and Serializable isolation are other ways to protect rules; neither is a substitute name for a Java mutex.
+
+#### Frequent conflicts and coordination across instances
+
+Frequent conflicts make optimistic retries expensive, especially when each attempt does substantial work. Prefer a short conditional database update for a simple predicate; consider pessimistic locking when the decision needs protected reads. Measure lock wait time, retry counts, throughput, and tail latency. A long critical section can make pessimistic waiting expensive too. For a very hot key, reducing work inside the protected region or serializing commands per key may help more than changing the primitive.
+
+For example, with 100 callers competing for stock 3, CAS or version checks can generate many losing attempts, while a row lock can generate many waiters. Neither creates more stock or dependency capacity. Apply admission limits and finite wait/retry budgets rather than allowing an unbounded backlog.
+
+Across service instances, a shared coordination lock or lease needs an explicit failure protocol. A lease may expire while its old holder is paused; a new holder can start before the old one resumes. **A lease alone cannot stop the stale holder's later write.** The protected resource must reject stale ownership, for example by checking a monotonically increasing fencing token, or by a conditional generation/version check. Every relevant write must participate. See the existing [leases and generations explanation](../software-design/reliable-asynchronous-operations.md).
+
+Verify scope as well as arithmetic: run competing operations through separate service instances for a database rule. For local CAS, coordinate many callers against the same object and assert the accepted total never exceeds capacity. A passing stress run is evidence, not a proof of every interleaving; inspect the atomic decision and retry path too.
+
+
 ## 2. Understand how a Java pool admits work
 
 For a running `ThreadPoolExecutor`, the ordinary admission order is **core workers → queue → extra workers → rejection**. Shutdown can cause rejection independently of capacity. Worker creation is normally lazy.
