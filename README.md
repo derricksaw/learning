@@ -41,7 +41,7 @@ You can include what you learned, questions, examples, or source links:
 /learn Docker networking — add an explanation of bridge networks and container DNS
 ```
 
-The workflow searches existing notes first and improves a matching note with new information. For a new topic, it creates the note directly in an appropriate category with a descriptive filename. Include a preferred location or ask for a preview if desired. Created and updated notes are validated and staged with `git add`, so new files are tracked. Committing and pushing still require an explicit request.
+The workflow searches existing notes first and improves a matching note with new information. For a new topic, it creates the note directly in an appropriate category with a descriptive filename. Include a preferred location or ask for a preview if desired. Each learning update prepares or refines the note, understanding questions, and a suitable focused exercise, then validates, commits, and pushes the learning changes. This also applies to follow-up note refinements without another `/learn`. Necessary starter code and requirements are included; learner code attempts, completed solutions, and review-only changes stay local unless you explicitly request publication. You can request local-only work or review before publication.
 
 Categories are created as needed, for example `devops/docker-networking.md` or `programming/python-generators.md`. No category structure is imposed in advance.
 

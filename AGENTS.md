@@ -26,7 +26,7 @@ Preview Markdown, check relative links, and validate Mermaid syntax when changin
 
 ## Learning Workflow
 
-For `/learn`, `$learn`, or learning-note requests, read the repository's learn skill. Search existing notes and integrate matching material without duplication. Create new notes directly in the closest category, choosing a descriptive filename without requiring preview or location approval. Validate the result and stage the created or updated note with `git add <path>` so new files are tracked. Do not move, rename, or delete notes without authorization.
+For `/learn`, `$learn`, or learning-note requests, read the repository's learn skill. Search existing notes and integrate matching material without duplication. Create new notes directly in the closest category, choosing a descriptive filename without requiring preview or location approval. Prepare or refine understanding questions and a suitable focused exercise, validate the learning changes, then commit and push each note creation or refinement, including follow-up refinements. Learner code completion and review-only changes remain local unless explicitly requested. Do not move, rename, or delete notes without authorization.
 
 ## Practice workflow
 
@@ -36,4 +36,4 @@ New technical learning should produce or refine a focused exercise in a suitable
 
 Local history uses short messages (`Initial commit`, `commit`); no strict convention is established. Prefer descriptive imperative subjects, such as `Clarify transaction isolation diagrams`. Keep commits focused. PRs should describe the learning change, list validation, and link relevant issues; include a rendered preview for significant visual changes.
 
-Staging task-related files with `git add <path>` is allowed without additional approval. Do not commit or push unless requested. New files remain untracked until staged, and pushing only transfers commits. Never include secrets, `.env` files, or unrelated changes.
+Staging task-related files with `git add <path>` is allowed without additional approval. Learning-note creation/refinement is standing authorization to commit and push its notes, questions, requirements, assets, and necessary exercise scaffold; inspect staged and outgoing changes to exclude learner solutions and unrelated work. Code completion, review cleanup, and completion-status updates alone do not authorize commit/push. Other work requires an explicit request. New files remain untracked until staged, and pushing only transfers commits. Never include secrets, `.env` files, or unrelated changes.
