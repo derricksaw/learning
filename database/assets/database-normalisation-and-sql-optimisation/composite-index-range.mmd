@@ -1,0 +1,6 @@
+flowchart TD
+    A["B-tree ordered by<br/>customer_id, shipped_at DESC"] --> B["Customer 7<br/>June 12, June 10"]
+    A --> C["Customer 8<br/>June 15, June 11, June 02"]
+    A --> D["Customer 9<br/>June 14, June 01"]
+    Q["Need customer 8<br/>shipments on or after June 10"] -->|"Equality selects the customer range"| C
+    C -->|"Time bound narrows within that range"| R["June 15 and June 11 qualify"]

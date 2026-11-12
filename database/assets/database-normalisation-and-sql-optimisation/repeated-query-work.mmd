@@ -1,0 +1,6 @@
+flowchart TD
+    A["Outer operation<br/>800 rows"] --> B["Inner operation<br/>runs once per outer row"]
+    B --> C["3 rows per loop x 800 loops<br/>about 2400 rows processed"]
+    B --> D["0.2 ms per loop x 800 loops<br/>about 160 ms accumulated"]
+    C --> E["Inspect repeated work<br/>and preserve query results"]
+    D --> E

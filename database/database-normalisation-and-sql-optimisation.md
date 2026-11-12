@@ -21,6 +21,10 @@ The rule `supplier_code → supplier_name, supplier_email` means equal codes mus
 
 Use a separate illustrative sales model: each order has numbered lines, one customer, and one current customer name; each product has one current name. A line's quantity and sale price belong to that specific sale.
 
+![Three steps from repeating product groups to line rows, order headers and customer records](assets/database-normalisation-and-sql-optimisation/normal-forms.svg)
+
+Read downward: each split moves a fact to the identity that determines it. This is a simplified path for the stated sales rules; the definitions below apply to all candidate keys. [Editable Mermaid source](assets/database-normalisation-and-sql-optimisation/normal-forms.mmd).
+
 | Stage | Problem removed | Resulting responsibility |
 |---|---|---|
 | 1NF | Lists such as `product_ids = "4,9"` or repeating product columns | One line per row, values appropriate to their domains |
@@ -30,7 +34,11 @@ Use a separate illustrative sales model: each order has numbered lines, one cust
 
 A prime attribute belongs to some candidate key. Formally, 3NF permits `X → A` when the dependency is trivial, X is a superkey, or A is prime. Check **all candidate keys**: adding an artificial ID does not remove existing dependencies. BCNF can require decompositions that lose dependency preservation. [Normalisation overview](https://opentextbc.ca/dbdesign01/chapter/chapter-12-normalization/)
 
-A worked decomposition, shown as tables and their keys:
+A worked decomposition, shown as relationships and then keys:
+
+![Customer to orders, orders to sales lines, and products to sales lines](assets/database-normalisation-and-sql-optimisation/sales-relationships.svg)
+
+A bar pair means exactly one; a circle with a fork means zero or many. Each line belongs to one order and references one product. Its two PK fields form one composite key. Draft orders may have no lines; requiring a placed order to contain a line needs an additional rule. [Editable Mermaid source](assets/database-normalisation-and-sql-optimisation/sales-relationships.mmd).
 
 | Table | Key | Facts owned here |
 |---|---|---|
@@ -65,6 +73,10 @@ Separate SQL execution from network latency, connection-pool waiting and applica
 
 In PostgreSQL 17, `EXPLAIN` shows estimates; `EXPLAIN (ANALYZE, BUFFERS)` executes the statement. Costs are planner units, not milliseconds. Actual rows and time are per-loop averages: 3 rows across 800 loops means about 2400 rows processed at that node. Buffer hits still represent work. Parent metrics include child work, so do not add every node's metrics. `ANALYZE table_name` refreshes statistics; it is distinct from the EXPLAIN option. [Reading plans](https://www.postgresql.org/docs/17/using-explain.html)
 
+![Repeated inner operation with 800 loops multiplies row processing and elapsed work](assets/database-normalisation-and-sql-optimisation/repeated-query-work.svg)
+
+Hypothetical arithmetic, not a captured application plan. Row processing counts repeated visits, not distinct rows. Child time is already included in an inclusive parent time. [Editable Mermaid source](assets/database-normalisation-and-sql-optimisation/repeated-query-work.mmd).
+
 <details>
 <summary>Show illustrative plan-reading SQL</summary>
 
@@ -88,6 +100,10 @@ Run data-changing EXPLAIN statements only where their effects are acceptable: AN
 ## Index the access pattern
 
 For a separate illustrative query, consider a customer's recent shipments. An index on `(customer_id, shipped_at DESC)` groups one customer's entries and orders their shipment times. Equality on the first column narrows the range before a time condition is applied. Reversing the columns changes the range scanned. An index on a trailing column alone is not equivalent. [PostgreSQL 17 multicolumn indexes](https://www.postgresql.org/docs/17/indexes-multicolumn.html)
+
+![A composite index groups customers and then orders their shipment times](assets/database-normalisation-and-sql-optimisation/composite-index-range.svg)
+
+Schematic index keys, not a physical B-tree page layout. Equality narrows to one customer, then the date bound selects part of that group. The actual plan depends on selectivity and cost. [Editable Mermaid source](assets/database-normalisation-and-sql-optimisation/composite-index-range.mmd).
 
 | Symptom | Investigate | Tradeoff |
 |---|---|---|

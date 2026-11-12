@@ -1,0 +1,4 @@
+flowchart TD
+    A["Repeating groups<br/>Order 42: products 9 and 12 in one field"] -->|"One row per line"| B["1NF: separate line rows<br/>Key: order_id + line_no"]
+    B -->|"Move facts depending on order_id alone"| C["2NF: order header + lines<br/>Customer name still repeated across orders"]
+    C -->|"Move current customer details to their owner"| D["3NF: customer + order + lines<br/>Orders reference customer identity"]

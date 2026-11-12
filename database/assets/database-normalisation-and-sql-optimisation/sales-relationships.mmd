@@ -1,0 +1,24 @@
+erDiagram
+    CUSTOMER ||--o{ SALES_ORDER : places
+    SALES_ORDER ||--o{ SALES_LINE : contains
+    PRODUCT ||--o{ SALES_LINE : identifies
+    CUSTOMER {
+        bigint customer_id PK
+        text current_customer_name
+    }
+    SALES_ORDER {
+        bigint order_id PK
+        bigint customer_id FK
+        timestamp placed_at
+    }
+    SALES_LINE {
+        bigint order_id PK, FK
+        int line_no PK
+        bigint product_id FK
+        int quantity
+        bigint unit_price_at_sale
+    }
+    PRODUCT {
+        bigint product_id PK
+        text current_product_name
+    }
