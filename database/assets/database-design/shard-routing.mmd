@@ -1,0 +1,6 @@
+flowchart TD
+    T["Tenant 42 request<br/>includes routing key"] --> R["Router / placement map"]
+    R -->|"Route tenant 42"| B["Shard B<br/>Tenant 42 orders + lines + payments"]
+    G["Global newest records<br/>no tenant filter"] --> F["Fan out and merge<br/>consistent ordering required"]
+    F --> A["Shard A<br/>Other tenants' related data"]
+    F --> B

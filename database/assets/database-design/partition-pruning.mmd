@@ -1,0 +1,5 @@
+flowchart TD
+    Q["Query audit_event<br/>June 10 to June 12"] --> L["One logical table<br/>One PostgreSQL database"]
+    L -. "Pruned: outside date bounds" .-> M["May partition"]
+    L -->|"Relevant partition"| J["June partition<br/>Index can narrow within June"]
+    L -. "Pruned: outside date bounds" .-> U["July partition"]

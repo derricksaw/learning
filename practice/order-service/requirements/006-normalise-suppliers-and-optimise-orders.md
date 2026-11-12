@@ -2,7 +2,7 @@
 
 Status: ready
 
-Learning: [Database normalisation and SQL optimisation](../../../database/database-normalisation-and-sql-optimisation.md).
+Learning: [Database design](../../../database/database-design.md) and [SQL optimisation](../../../database/sql-optimisation.md).
 
 ## Scope and supplied pieces
 
@@ -15,6 +15,8 @@ The app supplies supplier columns and UI, a correct slow query, and optional rep
 1. Normalise current supplier contacts. Business rule: each product has one supplier; `supplier_code` identifies one current name and email. A supplier can exist without products. Add a new forward Flyway migration, resolve or reject conflicting source contacts, backfill and enforce references. Do not edit an already-applied migration. The inline TODO in `V8__inventory_supplier_contacts.sql` marks this design debt, not a request to rewrite V8.
 2. Update the inline TODO in `WorkspaceController.inventory()` to read the new model while preserving `supplierCode`, `supplierName`, `supplierEmail` and all existing JSON fields. Check existing inventory insertion paths and defaults; order and stock operations must still work.
 3. Optimise the inline TODO in `WorkspaceController.orders()` and add justified indexes through a new migration if needed. Keep the latest 100 orders ordered by `created_at DESC, id ASC`, current product name, and the correct invoice-existence flag. Handle zero orders, missing invoices and tied timestamps. Explain why your chosen query and access paths reduce work.
+
+For design review, explain which measured bottleneck would justify partitioning or sharding this app, which routing key would keep related operations local, and what would become cross-shard. This is a discussion of the existing app, not a request to add distributed storage to this focused exercise.
 
 No target schema DDL, tuned SQL or indexes are supplied. Request hints or review when ready. The existing `JdbcTemplate.query` call executes SQL and maps each result row into the response record; preserve the mapper's column labels and types when changing the SQL.
 
