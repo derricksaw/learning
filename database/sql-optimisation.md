@@ -16,31 +16,99 @@
 
 Separate SQL execution from network latency, connection-pool waiting and application serialization; see [request investigation](../production/production-request-lifecycle.md).
 
-In PostgreSQL 17, `EXPLAIN` shows estimates; `EXPLAIN (ANALYZE, BUFFERS)` executes the statement. Costs are planner units, not milliseconds. Actual rows and time are per-loop averages: 3 rows across 800 loops means about 2400 rows processed at that node. Buffer hits still represent work. Parent metrics include child work, so do not add every node's metrics. `ANALYZE table_name` refreshes statistics; it is distinct from the EXPLAIN option. [Reading plans](https://www.postgresql.org/docs/17/using-explain.html)
+### Start with the question EXPLAIN answers
 
-![Repeated inner operation with 800 loops multiplies row processing and elapsed work](assets/sql-optimisation/repeated-query-work.svg)
+SQL describes the result you want. PostgreSQL chooses the steps used to produce it: read rows, filter, join, sort and so on. **A plan is a tree of those operations.** An indented child supplies rows to its parent. Read from the leaf operations upward to understand the data flow; execution can request rows on demand rather than completing each whole step first.
 
-Hypothetical arithmetic, not a captured application plan. Row processing counts repeated visits, not distinct rows. Child time is already included in an inclusive parent time. [Editable Mermaid source](assets/sql-optimisation/repeated-query-work.mmd).
+| Command | Plain-English question | Executes the query? |
+|---|---|---|
+| EXPLAIN | What steps would PostgreSQL choose, and what does it estimate? | No, for the ordinary SELECT used here |
+| EXPLAIN ANALYZE | What happened when PostgreSQL ran those steps? | Yes |
+| EXPLAIN (ANALYZE, BUFFERS) | What happened, including database buffer activity? | Yes |
+
+### Follow 10,000 rows through a simple plan
+
+Suppose `shipment` contains 10,000 rows and customer 8 owns 100 of them. We want those 100 shipment IDs, sorted by ID. Assume this example uses a sequential scan.
+
+![A sequential scan examines 10000 rows, keeps 100 matching rows, and passes them to a sort](assets/sql-optimisation/explain-row-flow.svg)
+
+The filter is part of the scan node in the printed plan; the separate boxes expose its work. All numbers below are illustrative, not captured benchmark output. [Editable source](assets/sql-optimisation/explain-row-flow.mmd).
 
 <details>
-<summary>Show illustrative plan-reading SQL</summary>
+<summary>Show the query and its illustrative EXPLAIN output</summary>
 
 ```sql
--- Illustrative; adapt to a representative development database.
 EXPLAIN (ANALYZE, BUFFERS)
-SELECT id, created_at
-FROM purchase_order
-ORDER BY created_at DESC, id
-LIMIT 100;
+SELECT id
+FROM shipment
+WHERE customer_id = 8
+ORDER BY id;
 ```
 
-This is a diagnostic example, not the exercise solution. The note's SQL was not executed as a standalone example.
+```text
+Sort  (cost=192.32..192.57 rows=100 width=8)
+      (actual time=1.600..1.605 rows=100 loops=1)
+  Sort Key: id
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=64
+  -> Seq Scan on shipment  (cost=0.00..189.00 rows=100 width=8)
+                          (actual time=0.010..1.500 rows=100 loops=1)
+       Filter: (customer_id = 8)
+       Rows Removed by Filter: 9900
+       Buffers: shared hit=64
+Planning Time: 0.100 ms
+Execution Time: 1.650 ms
+```
+
+This is a deliberately formatted teaching plan, not an executed query. Line wrapping makes the estimated and measured parts easier to compare.
 
 </details>
 
-With hypothetical plan output `rows=1` estimated but `actual rows=5000`, investigate selectivity, skew and correlated predicates before forcing a join strategy. A nested loop can be excellent for a few outer rows with cheap indexed probes; repeated large inner scans can be costly. Hash joins can suit larger sets but consume memory. A sequential scan can be optimal when most rows are needed. [Plan interpretation](https://www.postgresql.org/docs/17/using-explain.html)
+Read the example in this order:
 
-Run data-changing EXPLAIN statements only where their effects are acceptable: ANALYZE actually performs writes. A rollback can undo transactional writes, but not every external side effect or sequence advance.
+| Step | Plan field | What happened |
+|---|---|---|
+| 1. Read and filter | Seq Scan; Filter; Rows Removed by Filter: 9900 | Read the table sequentially, keeping 100 matching rows and rejecting 9,900 |
+| 2. Sort | Sort; Sort Key: id | Order the 100 matching IDs; this sort must consume its input before returning the first sorted row |
+| 3. Return | Top node actual rows=100 | Produce 100 result rows; execution time is about 1.65 ms in this hypothetical run |
+
+**The scan's actual rows=100 means rows emitted after filtering. It does not mean only 100 rows were examined.** In this fully consumed, single-loop scan, 100 kept + 9,900 removed = 10,000 examined. This arithmetic is specific to this simple plan, not a general formula for every node.
+
+### Decode one node without mixing estimates and measurements
+
+| Field from the scan | Meaning |
+|---|---|
+| cost=0.00..189.00 | Estimated work to produce the first row, then all rows. These are planner cost units, not milliseconds. |
+| rows=100 before actual | Estimated output row count if this node runs to completion |
+| width=8 | Estimated average size of an output row in bytes |
+| actual time=0.010..1.500 | Measured milliseconds to first output, then completion, averaged per execution |
+| rows=100 inside actual | Measured output rows per execution |
+| loops=1 | This node executed once |
+| shared hit=64 | 64 shared-buffer block accesses were satisfied from PostgreSQL's buffer cache; these are not row counts |
+
+Compare estimated versus measured rows first. Here both are 100, so this node's row estimate was accurate. If it estimated 100 and actually emitted 50,000 after full consumption, investigate data distribution and statistics. A LIMIT may stop a child early, so fewer actual rows do not always mean a bad estimate.
+
+The sort's time includes obtaining rows from the scan: do not add 1.500 ms and 1.605 ms as independent work. Planning Time is time to prepare the plan; Execution Time measures execution with EXPLAIN overhead and does not represent the whole HTTP request. [PostgreSQL plan fields and LIMIT behaviour](https://www.postgresql.org/docs/17/using-explain.html)
+
+### Use the plan to form a hypothesis
+
+For the example, ask: **is examining 10,000 rows to find 100 a meaningful cost at the real workload's scale?** An index beginning with `customer_id` could make a narrower lookup possible; whether that beats a scan depends on selectivity, table size and other work. It does not automatically remove the sort. Compare equivalent results, scan work, sort work and repeated execution time after a candidate change.
+
+A sequential scan is reasonable for a small table or when much of it is needed. An index scan finds entries through an index and may fetch table rows. Neither name alone proves that a query is good or bad. A Filter checks candidate rows; an Index Cond helps navigate the index's access path.
+
+### Read repetition and buffers after the basic row flow
+
+![Repeated inner operation with 800 loops multiplies row processing and elapsed work](assets/sql-optimisation/repeated-query-work.svg)
+
+Hypothetical arithmetic: 3 output rows per execution × 800 loops means about 2,400 rows emitted across executions. These can include repeat visits to the same underlying rows. Likewise, a node's total measured time is approximately its per-loop completion time × loops. Parent timings include child work. [Editable Mermaid source](assets/sql-optimisation/repeated-query-work.mmd).
+
+A nested loop may execute its inner operation once per outer row. A few indexed probes can be efficient; thousands of repeated broad scans can be costly. A hash join has different memory and scan costs. Inspect actual cardinality and repeated work before changing the strategy.
+
+BUFFERS helps distinguish repeated cached accesses from blocks PostgreSQL had to read into its buffers. A shared read may still be served by the operating system cache; it does not prove physical disk I/O. Parent buffer counts include child accesses, so avoid summing the whole tree. Buffer totals are not divided by loops like actual rows/time. [Buffer reporting](https://www.postgresql.org/docs/17/sql-explain.html)
+
+`ANALYZE shipment` is a separate command that updates planner statistics. `EXPLAIN ANALYZE SELECT ...` measures a running query. Despite the shared word, they do different jobs.
+
+EXPLAIN ANALYZE also executes data-changing statements. Run those only where their effects are acceptable. A rollback can undo transactional writes, but not every external side effect or sequence advance.
 
 ## Index the access pattern
 
@@ -305,5 +373,23 @@ An N+1 read can also be slow while every query is fast: one shipment-list call f
    <summary>Show answer</summary>
 
    Inspect join cardinality and the aggregation grain. Two charges crossed with three tags form six rows, repeating each charge three times. Establish the required one-row-per-shipment result, then measure a design that preserves it. A faster wrong total is not an optimisation.
+
+   </details>
+
+6. A fully consumed scan shows actual rows=100, loops=1, and Rows Removed by Filter: 9900. Did it examine only 100 rows?
+
+   <details>
+   <summary>Show answer</summary>
+
+   No. It emitted 100 matching rows after rejecting 9,900. For this simple single-loop scan it examined 10,000 rows. The sort above it receives only the 100 matches. Distinguish work performed from rows returned.
+
+   </details>
+
+7. A scan has cost=0.00..189.00 and actual time=0.010..1.500. Did it take 189 milliseconds?
+
+   <details>
+   <summary>Show answer</summary>
+
+   No. The estimated cost is in planner units. Its measured completion time was 1.500 ms per execution, including work below that node. Use actual timings and loops to understand measured execution, and costs to understand the planner's estimates.
 
    </details>

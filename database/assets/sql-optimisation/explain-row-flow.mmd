@@ -1,0 +1,4 @@
+flowchart TD
+    A["Seq Scan reads shipment<br/>10,000 rows examined"] --> B["Filter: customer_id = 8<br/>100 kept; 9,900 rejected"]
+    B --> C["Sort the 100 matches<br/>by id"]
+    C --> D["Return 100 shipment IDs"]
