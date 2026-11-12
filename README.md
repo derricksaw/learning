@@ -19,6 +19,7 @@ Use this index to find likely matches, then search the relevant notes for detail
 | Software design | [State machines and business workflows](software-design/state-machines-and-business-workflows.md) | Business states, submission eligibility, guarded concurrent transitions, and compensation. | state machine, guards, invariants, resubmission, optimistic locking, saga, orchestration, choreography |
 | Software design | [Reliable asynchronous operations](software-design/reliable-asynchronous-operations.md) | Safe repetition, durable waiting, and recovery of external operations across failures. | unknown outcomes, retries, idempotency, reconciliation, operation identity, leases, generations, inbox, outbox |
 | Software design | [Concurrency across application instances](software-design/distributed-concurrency.md) | Shared authority, version checks, durable idempotency, and temporary ownership across separate processes. | distributed concurrency, optimistic locking, stale writes, replicas, Redis, leases, fencing, idempotency, unique business keys |
+| Database | [Database normalisation and SQL optimisation](database/database-normalisation-and-sql-optimisation.md) | Fact ownership, normal forms, query plans and measured SQL tuning. | functional dependency, 1NF, 2NF, 3NF, BCNF, indexes, EXPLAIN, joins |
 | LeetCode | [146. LRU Cache](leetcode/146-lru-cache.md) | Cache recency, preserved Java attempts, and an efficient reference solution. | least recently used, eviction, HashMap, doubly linked list, LinkedHashMap |
 
 ## Turn learning into practice

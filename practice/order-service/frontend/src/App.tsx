@@ -169,6 +169,7 @@ export default function App() {
             <tr>
               <th>Product</th>
               <th>Category</th>
+              <th>Supplier</th>
               <th>Available</th>
               <th>Status</th>
               <th>
@@ -183,6 +184,7 @@ export default function App() {
                   <Product item={item} />
                 </td>
                 <td className="muted">{item.category}</td>
+                <td><strong>{item.supplierName}</strong><br /><span className="muted">{item.supplierEmail}</span></td>
                 <td>
                   <strong>{item.available}</strong>
                   <span className="unit"> units</span>

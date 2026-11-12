@@ -5,6 +5,9 @@ export type Item = {
   category: string
   available: number
   reorderPoint: number
+  supplierCode: string
+  supplierName: string
+  supplierEmail: string
   version: number
 }
 export type Order = {

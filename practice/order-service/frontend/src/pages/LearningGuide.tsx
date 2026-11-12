@@ -33,6 +33,12 @@ export default function LearningGuide() {
       'Persist one invoice, acquire an expiring lease, and release only your own token.',
       'Your next exercise',
     ],
+    [
+      '006',
+      'Normalise suppliers and optimise order reads',
+      'Keep Inventory supplier details consistent and tune the SQL behind Orders.',
+      'Ready',
+    ],
   ]
   return (
     <>
@@ -53,7 +59,7 @@ export default function LearningGuide() {
               <h2>{title}</h2>
               <p>{detail}</p>
             </div>
-            <Badge tone={id === '005' ? 'amber' : 'green'}>{state}</Badge>
+            <Badge tone={['005', '006'].includes(id) ? 'amber' : 'green'}>{state}</Badge>
           </section>
         ))}
       </div>
@@ -62,7 +68,7 @@ export default function LearningGuide() {
         <p>
           Open <code>practice/order-service/requirements/</code> for the acceptance criteria and
           target files. Exercise 005 has three inline TODOs in <code>InvoiceRepository</code> and{' '}
-          <code>RedisDocumentLease</code>. Save your implementation and ask for a code review.
+          <code>RedisDocumentLease</code>. Exercise 006 starts in <code>WorkspaceController</code> and the supplier migration. Save your implementation and ask for a code review.
         </p>
         <p>
           This is a local learning environment. Shipping labels and invoice documents are simulated;

@@ -30,6 +30,8 @@ For `/learn`, `$learn`, or learning-note requests, read the repository's learn s
 
 ## Practice workflow
 
+Always provide the learning notes to the learner first, then proceed to practice preparation. Put exercises inside the working application, using real features and deliberately incomplete or inefficient implementations where appropriate; do not create isolated learning labs.
+
 New technical learning should produce or refine a focused exercise in a suitable practice application. Build supporting application code, setup, and fixtures so the learner can work directly on a small set of topic-related gaps. Explain unfamiliar framework syntax directly; guide and review the target problem without filling its solution unless asked. Additional applications or services are allowed when the topic requires separate boundaries, including microservices. Share the parent Git history and inspect existing learner work before editing.
 
 ## Commits and Pull Requests

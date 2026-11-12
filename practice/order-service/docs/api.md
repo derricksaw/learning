@@ -46,3 +46,7 @@ Errors use a consistent body:
 | `500 INTERNAL_ERROR` | Unexpected server failure; no raw exception is returned |
 
 No operation is retried automatically by the frontend. A network timeout can leave the result uncertain; inspect durable state before repeating an externally consequential operation. The current external operations are simulators, so they purchase nothing.
+
+## Exercise 006 read models
+
+`GET /workspace/inventory` additionally returns `supplierCode`, `supplierName`, and `supplierEmail` per item. These are current supplier contacts displayed in Inventory. `GET /workspace/orders` retains its existing contract and intentionally expensive baseline SQL for tuning. Both routes remain available through `/api/a` and `/api/b`.

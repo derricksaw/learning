@@ -1,6 +1,6 @@
 # Order Lab
 
-A working operations workspace for learning transactions, concurrency, and durable idempotency. The React console talks to two Spring Boot instances sharing PostgreSQL and Redis. Your completed implementations are preserved; exercise 005 deliberately leaves three backend TODOs.
+A working operations workspace for learning transactions, concurrency, and durable idempotency. The React console talks to two Spring Boot instances sharing PostgreSQL and Redis. Your completed implementations are preserved; exercises 005 and 006 leave focused implementation TODOs.
 
 ## Run with Docker Compose
 
@@ -50,7 +50,7 @@ Restart after backend changes. The frontend has live reload. The runner verifies
 - **Orders:** place an order through the real reservation transaction; request a simulated shipping label or an invoice.
 - **Invoices:** inspect stored invoices and generate/open simulated text documents after exercise 005 is implemented.
 - **Concurrency lab:** capture inventory through A and B, save A's correction, then observe B's stale-version conflict. These actions change local stock.
-- **Learning guide:** find the five exercises and their implementation targets.
+- **Learning guide:** find the six exercises and their implementation targets.
 
 The instance selector routes requests explicitly through A or B. Both see the same database. All inventory/order mutations use the existing exercise services; the frontend does not simulate a successful save or hide server failures. Exercise 005 returns `501 / EXERCISE_INCOMPLETE` until its TODOs are solved. No real postage, billing, or legal invoice generation occurs.
 
@@ -95,3 +95,5 @@ To develop against containerized dependencies only, start `docker compose up -d 
 Read the [design document](docs/design.md), [API contract](docs/api.md), and [runbook](docs/runbook.md). Follow the [requirements index](requirements/README.md); start with [005 — Invoice idempotency and Redis ownership](requirements/005-invoice-idempotency-and-redis-lease.md) for the current unfinished exercise.
 
 This is a loopback-only development workspace. Before exposing it publicly, add authentication, authorization, TLS, and deployment-specific secret management. Those are not supplied by the local UI.
+
+Exercise [006](requirements/006-normalise-suppliers-and-optimise-orders.md) uses the real Inventory supplier contacts and deliberately slow Orders SQL. Optional workload data is supplied for the application tables.

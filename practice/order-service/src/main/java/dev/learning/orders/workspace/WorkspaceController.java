@@ -18,7 +18,7 @@ public class WorkspaceController {
         this.jdbc = jdbc;
     }
 
-    public record Item(long productId, String name, String category, int available, int reorderPoint, long version) {}
+    public record Item(long productId, String name, String category, int available, int reorderPoint, long version, String supplierCode, String supplierName, String supplierEmail) {}
     public record Summary(long orders, long units, long lowStock, long invoices) {}
     public record Order(UUID id, long productId, String productName, int quantity, String status,
             OffsetDateTime createdAt, boolean hasInvoice) {}
@@ -38,16 +38,20 @@ public class WorkspaceController {
 
     @GetMapping("/inventory")
     public List<Item> inventory() {
+        // TODO 006: read supplier details from the normalised model while preserving the JSON contract.
         return jdbc.query("SELECT * FROM inventory ORDER BY product_id",
                 (row, index) -> new Item(row.getLong("product_id"), row.getString("product_name"),
                         row.getString("category"), row.getInt("available"), row.getInt("reorder_point"),
-                        row.getLong("version")));
+                        row.getLong("version"), row.getString("supplier_code"), row.getString("supplier_name"),
+                        row.getString("supplier_email")));
     }
 
     @GetMapping("/orders")
     public List<Order> orders() {
+        // TODO 006: optimise this working query and its access paths; preserve ordering and invoice flags.
+        // Deliberately expensive: count all matches and cast indexed UUIDs to text.
         return jdbc.query("""
-                SELECT o.*, i.product_name, EXISTS (SELECT 1 FROM order_invoice v WHERE v.order_id = o.id) AS has_invoice
+                SELECT o.*, i.product_name, (SELECT count(*) FROM order_invoice v WHERE v.order_id::text = o.id::text) > 0 AS has_invoice
                 FROM purchase_order o JOIN inventory i ON i.product_id = o.product_id
                 ORDER BY o.created_at DESC, o.id LIMIT 100
                 """, (row, index) -> new Order(row.getObject("id", UUID.class), row.getLong("product_id"),
