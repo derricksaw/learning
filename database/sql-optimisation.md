@@ -2,7 +2,7 @@
 
 **Reduce the work needed to return the correct result, and verify the improvement with a representative plan.** This note covers diagnosis, indexes and seven worked SQL examples. For modelling, normalisation, partitioning and sharding, read [Database design](database-design.md).
 
-[Exercise 006](../practice/order-service/requirements/006-normalise-suppliers-and-optimise-orders.md) leaves the actual Orders query for you to optimise; the examples here use a separate illustrative domain.
+Start the [production query track at 007](../practice/order-service/requirements/007-explain-production-order-queries.md). Exercises 007–011 use the actual Orders history and report features; the worked examples below use an illustrative shipment domain.
 
 ## Investigate the work before rewriting SQL
 
@@ -142,7 +142,7 @@ The examples use illustrative shipment tables with these relationships:
 | shipment_tag | shipment_id, tag | Many tags per shipment |
 | customer | id, email | One customer per ID |
 
-Parent IDs and shipment timestamps are non-null; `shipped_at` is a timestamp with time zone. The child reference is nullable in example 5. SQL uses PostgreSQL 17 syntax. Snippets were reviewed but not executed against these tables; work counts are hypothetical, not benchmark results. Exercise 006's app query remains learner work.
+Parent IDs and shipment timestamps are non-null; `shipped_at` is a timestamp with time zone. The child reference is nullable in example 5. SQL uses PostgreSQL 17 syntax. Snippets were reviewed but not executed against these tables; work counts are hypothetical, not benchmark results. The app's tuned queries and cursor implementation remain learner work in 007–011.
 
 For each candidate change, compare result rows and `EXPLAIN (ANALYZE, BUFFERS)` on representative data. A rewrite creates an opportunity; it does not guarantee a faster plan.
 
@@ -216,6 +216,29 @@ LIMIT 50;
 </details>
 
 Use the previous example's index. A cursor changes the navigation contract: it does not directly jump to page 2001. Both ordering columns are non-null here; descending columns use `<`. Mixed ascending/descending ordering needs a matching explicit predicate. Concurrent changes to sort keys can still cause omissions or repeats; an immutable sort key or a consistent snapshot addresses a different requirement than speed. [LIMIT/OFFSET](https://www.postgresql.org/docs/17/queries-limit.html), [row comparisons](https://www.postgresql.org/docs/17/functions-comparisons.html)
+
+### Pagination under production traffic
+
+A cursor must describe the **same ordering and filters** as the query. A timestamp alone is insufficient when rows share that timestamp. Keep the full timestamp precision supplied by the server rather than converting it through a browser date object and losing fractional digits.
+
+![An insertion shifts OFFSET positions while a cursor keeps its original boundary](assets/sql-optimisation/pagination-under-inserts.svg)
+
+Read each branch as a second request after the first page returned A and B. The cursor promises continuation after B in a stable order; it does not freeze the whole dataset. The letters represent ordered records. [Editable source](assets/sql-optimisation/pagination-under-inserts.mmd).
+
+| Contract choice | Production consequence |
+|---|---|
+| Offset/page number | Supports jumps; deep requests compute skipped rows and inserts can shift positions |
+| Cursor/next page | Uses a boundary; arbitrary page-number jumps need another mechanism |
+| Mixed sort directions | Derive the boundary from each field's direction; a simple tuple inequality may be wrong |
+| Filter or sort changes | Reset pagination; the old cursor describes a different result set |
+| Concurrent insertion | Define whether newer rows appear only after refresh; continuation is not a snapshot |
+| Deletion or mutable sort fields | Rows can disappear or move across boundaries; define the consistency contract |
+| Exact total count | May add a full counting query even when retrieving one page is cheap |
+| Has-next flag | Fetch a bounded look-ahead row; form the continuation from the last row actually returned |
+
+For a mixed-direction example, records ordered by time descending and ID ascending include `(12:00, 10)`, `(12:00, 11)`, `(12:00, 12)`, `(11:59, 9)`. After `(12:00, 11)`, continuation must include ID 12 at the same time and then older times. Excluding all equal timestamps loses a row. Repeating the first page's last row duplicates it. The target exercise leaves the actual predicate for you to derive.
+
+Query parameters should use placeholders, and server-side page limits must be bounded. A cursor is navigation data, not authorization. Reapply authorization and filters on every request. When a client supplies both boundary fields, validate them together rather than interpreting half a cursor. [PostgreSQL ordering](https://www.postgresql.org/docs/17/queries-order.html), [LIMIT and OFFSET](https://www.postgresql.org/docs/17/queries-limit.html)
 
 ### 4. Express existence without multiplying parent rows
 
@@ -323,6 +346,24 @@ CREATE INDEX customer_email_lower_idx ON customer (lower(email));
 
 The query keeps its comparison rule and gains a matching access path. Check the actual index condition. If case-insensitive uniqueness is also a business requirement, evaluate a unique expression index after resolving existing conflicts. Define normalization/collation semantics deliberately; this simplified example is not a complete email identity policy. [Expression indexes](https://www.postgresql.org/docs/17/indexes-expressional.html)
 
+### Choose related-data retrieval from the actual boundary
+
+A join is a normal relational operation. Teams may restrict particular joins because data belongs to another service, lives on separate shards, or creates unacceptable transfer or execution costs. These are different problems: measure the local query, and identify the ownership/placement boundary before choosing an alternative.
+
+| Approach | When it can fit | Evidence and correctness risks |
+|---|---|---|
+| Local join | Related data shares one database boundary | Join cardinality, uniqueness, row width and plan work |
+| Correlated indexed lookup | A small parent page needs cheap related probes | Subplan loops, buffers and selectivity; one SQL request can do many internal probes |
+| Two bounded queries and a map | Fetch a page, then related rows for that page's IDs | Extra round trip and merge work; preserve parent order and missing-child semantics |
+| Batch service API | Another service owns the related data | Bounded batch size, timeouts, partial responses and authorization |
+| Materialized/read projection | Repeated cross-boundary reporting tolerates staleness | Refresh delay, durable change capture, rebuild and reconciliation |
+
+**Worked batching example:** a page contains orders A, B and C; the related invoice batch returns B and C. Merge into the original parent sequence: A=false, B=true, C=true. Do not drop A because it has no invoice, and do not page the invoice result instead of the order result. Batching should replace per-order round trips with a bounded batch, not load the entire invoice table into memory.
+
+Two queries can observe different committed states. An invoice created between the page read and the invoice batch may appear in the enrichment; decide whether that is acceptable. If a same-database snapshot is required, choose the transaction/isolation boundary explicitly. Across services, document the consistency contract instead of claiming a local transaction covers both. See [transaction snapshots](../java/database-transactions-and-spring-transactional.md).
+
+For reporting, first state the **grain**: one row per product, order, customer, or day. Counts, currency amounts, zero-child rows and ordering must survive any rewrite. Exact totals and global dashboards can dominate resource usage even when individual entity lookups are fast. A cache or projection changes freshness and invalidation work; it does not make the original correctness obligations disappear.
+
 ### Diagnose estimates and round trips as well as SQL shape
 
 Suppose 90% of shipments in one region use one carrier. Independent-column estimates may miss that correlation and choose a poor plan. Refresh statistics after large changes, then consider extended statistics for supported within-table dependencies; they are not a general cure for join estimates. [Planner statistics](https://www.postgresql.org/docs/17/planner-stats.html)
@@ -391,5 +432,23 @@ An N+1 read can also be slow while every query is fast: one shipment-list call f
    <summary>Show answer</summary>
 
    No. The estimated cost is in planner units. Its measured completion time was 1.500 ms per execution, including work below that node. Use actual timings and loops to understand measured execution, and costs to understand the planner's estimates.
+
+   </details>
+
+8. A rule prohibits a cross-service join. Is making one HTTP request per order an adequate replacement?
+
+   <details>
+   <summary>Show answer</summary>
+
+   It can create N+1 round trips and partial failures. First fetch a bounded parent page, then use a bounded batch API for the related identities and merge without losing parents or changing their order. Define missing results, authorization, timeouts and freshness. A durable read projection may fit frequent reporting instead.
+
+   </details>
+
+9. Why might an endpoint with a fast 25-row query still be slow after pagination is added?
+
+   <details>
+   <summary>Show answer</summary>
+
+   It may also execute an expensive exact count, perform per-row remote calls, serialize large child collections, wait for a connection or block behind other work. Capture all queries and round trips for the request; optimise the measured bottleneck while preserving the API contract.
 
    </details>

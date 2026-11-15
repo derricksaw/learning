@@ -97,3 +97,9 @@ Read the [design document](docs/design.md), [API contract](docs/api.md), and [ru
 This is a loopback-only development workspace. Before exposing it publicly, add authentication, authorization, TLS, and deployment-specific secret management. Those are not supplied by the local UI.
 
 Exercise [006](requirements/006-normalise-suppliers-and-optimise-orders.md) uses the real Inventory supplier contacts and deliberately slow Orders SQL. Optional workload data is supplied for the application tables.
+
+## Production query exercises
+
+Exercises [007–011](requirements/007-explain-production-order-queries.md) form a production SQL optimisation track: plan diagnosis, filters/search/indexes, pagination, related-data retrieval and aggregate reporting. In **Orders**, use **Order history** for bounded filtered pages and **Order totals by product** for reporting. Offset mode works; cursor mode reports exercise 009's missing implementation until completed. Work in `OrderHistoryRepository`; your 006 solution remains separate.
+
+Optional development workload data in `scripts/seed-production-query-workload.sql` populates the same application tables with skew, timestamp ties and partially invoiced orders. It changes the app's history/counts without reserving stock. Read the exercise instructions before seeding. See the [API contract](docs/api.md) for filters and page metadata.

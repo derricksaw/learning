@@ -28,6 +28,7 @@ import { ApiError, request, shortId, sku } from './api'
 import { Badge, Product, Dialog } from './components/ui'
 import ConcurrencyLab from './pages/ConcurrencyLab'
 import LearningGuide from './pages/LearningGuide'
+import OrderHistory from './pages/OrderHistory'
 import type { Invoice, Item, Order, Replica, Summary } from './api'
 
 type Page = 'Overview' | 'Inventory' | 'Orders' | 'Invoices' | 'Concurrency lab' | 'Learning guide'
@@ -627,6 +628,7 @@ export default function App() {
             </section>
           )}
           {page === 'Orders' && (
+            <>
             <section className="panel">
               <div className="panel-heading">
                 <div>
@@ -649,6 +651,8 @@ export default function App() {
               </div>
               {orderTable(filteredOrders)}
             </section>
+            <OrderHistory replica={replica} />
+            </>
           )}
           {page === 'Invoices' && (
             <>

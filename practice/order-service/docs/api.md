@@ -50,3 +50,21 @@ No operation is retried automatically by the frontend. A network timeout can lea
 ## Exercise 006 read models
 
 `GET /workspace/inventory` additionally returns `supplierCode`, `supplierName`, and `supplierEmail` per item. These are current supplier contacts displayed in Inventory. `GET /workspace/orders` retains its existing contract and intentionally expensive baseline SQL for tuning. Both routes remain available through `/api/a` and `/api/b`.
+
+## Production query exercises 007–011
+
+`GET /workspace/order-history` returns `{items, hasMore, nextCursor, nextOffset}`. Each item has the existing Order fields. Query parameters:
+
+| Parameter | Contract |
+|---|---|
+| `limit` | 1–100, default 25; server fetches at most one extra look-ahead row |
+| `mode` | `offset` (working baseline) or `cursor` (501 until exercise 009) |
+| `offset` | 0–1,000,000, default 0; must be 0 in cursor mode |
+| `productId` | Optional positive catalog product ID |
+| `from`, `to` | Optional inclusive UTC calendar dates in YYYY-MM-DD; from must not exceed to |
+| `q` | Optional literal case-insensitive product-name substring, max 120 characters |
+| `afterCreatedAt`, `afterId` | Both absent or both present; only allowed in cursor mode. ISO offset timestamp and UUID. |
+
+Ordering is `created_at DESC, id ASC`. With more results, `nextCursor` is `{createdAt, id}` from the last returned row, preserving timestamp precision; `nextOffset` is supplied only in offset mode. There is no exact total count. Invalid parameters return `400 INVALID_REQUEST`. Unimplemented cursor requests return `501 EXERCISE_INCOMPLETE`, including the first cursor page.
+
+`GET /workspace/order-report` returns the first 100 catalog products ordered by product ID with `{productId, productName, orders, units, invoices, billedMinor}`. Zero-child products have zero totals. Amounts are integer minor units in the app's fixed MYR currency. Both endpoints are available through `/api/a` and `/api/b`; existing endpoints keep their contracts.

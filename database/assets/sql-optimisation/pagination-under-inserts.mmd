@@ -1,0 +1,4 @@
+flowchart TD
+    A["Initial order: A, B, C, D<br/>First page returns A, B"] --> B["A newer record X arrives<br/>New order: X, A, B, C, D"]
+    B --> O["OFFSET 2, take 2<br/>Returns B, C: B repeats"]
+    B --> K["Continue after boundary B<br/>Returns C, D"]

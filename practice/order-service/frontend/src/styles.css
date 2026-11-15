@@ -1431,3 +1431,13 @@ dialog::backdrop {
     }
   }
 }
+
+/* Order history and production-query exercise support. */
+.order-history { margin-top: 24px; }
+.order-history form { padding: 0 24px 18px; }
+.history-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+.history-filters .field { margin: 0; }
+.history-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 18px 24px; }
+.order-history form .history-actions { padding: 16px 0 0; }
+.history-actions span { font-size: 13px; color: var(--muted, #667085); }
+.history-error { color: #a12626; padding: 12px 24px; }
