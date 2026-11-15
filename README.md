@@ -20,7 +20,7 @@ Use this index to find likely matches, then search the relevant notes for detail
 | Software design | [Reliable asynchronous operations](software-design/reliable-asynchronous-operations.md) | Safe repetition, durable waiting, and recovery of external operations across failures. | unknown outcomes, retries, idempotency, reconciliation, operation identity, leases, generations, inbox, outbox |
 | Software design | [Concurrency across application instances](software-design/distributed-concurrency.md) | Shared authority, version checks, durable idempotency, and temporary ownership across separate processes. | distributed concurrency, optimistic locking, stale writes, replicas, Redis, leases, fencing, idempotency, unique business keys |
 | Database | [Database design](database/database-design.md) | Models, invariants, normalisation, partitioning and database/table sharding. | keys, constraints, 1NF, 2NF, 3NF, BCNF, shard keys, co-location, resharding |
-| Database | [SQL optimisation](database/sql-optimisation.md) | Query diagnosis, indexes, production pagination and related-data/reporting tradeoffs with plan evidence. | EXPLAIN, sargability, composite index, keyset pagination, concurrent inserts, joins, batching, aggregation, NULL, N+1 |
+| Database | [SQL optimisation](database/sql-optimisation.md) | Query diagnosis, indexes, production pagination and related-data/reporting tradeoffs with plan evidence. | EXPLAIN, sargability, composite index, keyset pagination, concurrent inserts, joins, batching, aggregation, materialized views, Redis caching, N+1 |
 | LeetCode | [146. LRU Cache](leetcode/146-lru-cache.md) | Cache recency, preserved Java attempts, and an efficient reference solution. | least recently used, eviction, HashMap, doubly linked list, LinkedHashMap |
 
 ## Turn learning into practice
@@ -28,6 +28,12 @@ Use this index to find likely matches, then search the relevant notes for detail
 New learning produces a focused exercise: Codex prepares the surrounding application and tests, you complete the topic-related gaps, then request a review. Reuse the [order service](practice/order-service/README.md) where it fits; additional applications and microservices are allowed when a topic needs them.
 
 Start with [001 — Place orders without overselling](practice/order-service/requirements/001-place-orders.md). Track progress in the [requirements index](practice/order-service/requirements/README.md). The order service supplies the surrounding API and PostgreSQL infrastructure; the marked transaction and stock-reservation gaps are yours to complete.
+
+## Learning queue
+
+| Topic | Planned scope | Timing |
+|---|---|---|
+| Versioning and change control | V1→V2 rollout, API/schema compatibility, feature flags, staged traffic, expand/contract migrations, rollback and release evidence | After the SQL optimisation track; no calendar reminder scheduled |
 
 ## Capture a topic
 

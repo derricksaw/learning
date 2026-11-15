@@ -15,6 +15,8 @@ Each requirement is a focused exercise linked to what you learned. Supporting ap
 | 009 | [Paginate a changing order history](009-paginate-order-history.md) | Production SQL optimisation: paginate a changing order history | ready |
 | 010 | [Retrieve related order data efficiently](010-retrieve-related-order-data.md) | Production SQL optimisation: retrieve related order data efficiently | ready |
 | 011 | [Optimise product order reports](011-optimise-product-order-reports.md) | Production SQL optimisation: optimise product order reports | ready |
+| 012 | [Materialize product order reports](012-materialize-product-order-reports.md) | Stored report results, freshness, refresh concurrency and cost | ready |
+| 013 | [Cache product order reports in Redis](013-cache-product-order-reports.md) | Cache-aside, TTL, invalidation, stampedes and recovery | ready |
 
 004 is complete by code review: the guarded SQL and participating writers were inspected; its optional two-process demonstration was not run.
 

@@ -8,7 +8,7 @@ Dependencies: No implementation prerequisite; learn this before tuning 008–011
 
 ## Target and learner-owned work
 
-Start at the TODO 007 in `OrderHistoryRepository.offsetPage()`. Capture the complete dynamically assembled SQL and bind values for: first page, deep offset (for example 20,000), product/date filter, and a search with few matches. Use `EXPLAIN (ANALYZE, BUFFERS)` on these SELECTs in the development database. Do not change SQL or add indexes yet.
+Start at the TODO 007 in `OrderHistoryRepository.offsetPageV1()`. Keep V1 executable, add your EXPLAIN interpretation as comments near the V1 query, and capture the complete dynamically assembled SQL and bind values for: first page, deep offset (for example 20,000), product/date filter, and a search with few matches. Use `EXPLAIN (ANALYZE, BUFFERS)` on these SELECTs in the development database. Do not change SQL or add indexes yet.
 
 To capture your first plan from a connected psql session started in `practice/order-service/`:
 
@@ -18,7 +18,7 @@ To capture your first plan from a connected psql session started in `practice/or
 \i scripts/explain-order-history.sql
 ```
 
-This supplied script runs the unfiltered baseline with the API's extra look-ahead row. It does not tune SQL or apply schema changes. Capture filtered variants from `offsetPage()` as well; replace JDBC `?` markers with equivalent typed values for the manual query, recording those values with the plan. `EXPLAIN ANALYZE` executes the SELECT, so use the development dataset.
+This supplied script runs the unfiltered baseline with the API's extra look-ahead row. It does not tune SQL or apply schema changes. Capture filtered variants from `offsetPageV1()` as well; replace JDBC `?` markers with equivalent typed values for the manual query, recording those values with the plan. `EXPLAIN ANALYZE` executes the SELECT, so use the development dataset.
 
 Create `docs/query-evidence/007-plans.md` with sanitised evidence. Explain the plan from data access to output, including estimated versus actual rows, removed rows, loops, cached/read blocks, sort method/memory and whether LIMIT stopped work early. Distinguish a repeated indexed probe from a repeated full scan, and database work from connection waiting, serialization and round trips.
 
@@ -31,7 +31,7 @@ Create `docs/query-evidence/007-plans.md` with sanitised evidence. Explain the p
 
 ## Supplied application support
 
-Use **Orders → Order history / Order totals by product** in the existing application. `OrderHistoryController` validates bounded inputs and supplies page metadata. `OrderHistoryRepository` contains the actual SQL and inline TODOs. Offset browsing, filters and reporting are working baselines; cursor requests return `501 EXERCISE_INCOMPLETE` until 009 is implemented. Existing `/workspace/orders` and learner work from 006 stay separate.
+Use **Orders → Order history / Order totals by product** in the existing application. `OrderHistoryController` validates bounded inputs and supplies page metadata. `OrderHistoryRepository` contains the actual SQL and inline TODOs. Offset browsing, filters and reporting are working baselines; V1 remains the working baseline; V2 history/report and cursor requests return `501 EXERCISE_INCOMPLETE` until their marked gaps are implemented. Existing `/workspace/orders` and learner work from 006 stay separate.
 
 Optional workload: from `practice/order-service/`, with the Compose database running, run:
 
@@ -40,6 +40,10 @@ docker compose exec -T postgres psql -U orders -d orders -v ON_ERROR_STOP=1 < sc
 ```
 
 For the rootless database, connect with psql using the existing local credentials and execute `\i scripts/seed-production-query-workload.sql` from that directory. This inserts 30,000 deterministic orders and 6,000 invoices into the real tables, with timestamp ties, missing invoices and skew across up to three existing products. It changes order counts/history, does not reserve stock, skips an empty catalog, and does not reset existing data. Re-running preserves existing fixture records rather than changing their timestamps or quantities. Use a disposable development dataset if existing counts must remain unchanged. Do not run the seed on production.
+
+## V1/V2 record
+
+Preserve the V1 implementation and its initial plan. Add concise V1 comments explaining the observed work, then implement the candidate in V2. Record both SQL versions, bind values, result checks and comparable plans using the [comparison template](../docs/query-evidence/comparison-template.md). V1/V2 query labels are not Flyway migration numbers. Adding indexes can change both versions' plans: retain the pre-index evidence and identify the schema/index state of every run. Do not overwrite V1 or publish learner implementation automatically.
 
 ## Verification and publication
 

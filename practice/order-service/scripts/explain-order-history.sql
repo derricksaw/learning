@@ -1,3 +1,4 @@
+-- V1 baseline: preserve this statement and record its EXPLAIN interpretation.
 -- Run against the development database. This executes a read-only baseline SELECT.
 -- psql -v page_offset=20000 -f scripts/explain-order-history.sql compares a deep page.
 \set ON_ERROR_STOP on

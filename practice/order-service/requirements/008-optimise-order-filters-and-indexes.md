@@ -8,7 +8,7 @@ Dependencies: 007 baseline evidence; 006 supplier changes are not required by th
 
 ## Target and learner-owned gaps
 
-Complete TODO 008 in `OrderHistoryRepository.offsetPage()`. Improve measured date-filter, search and ordered-page access paths. The baseline intentionally extracts a UTC date from timestamps and performs a literal case-insensitive substring search. Preserve the product filter and parameter binding.
+Complete TODO 008 in `OrderHistoryRepository.offsetPageV2()`. Improve measured date-filter, search and ordered-page access paths. The baseline intentionally extracts a UTC date from timestamps and performs a literal case-insensitive substring search. Preserve the product filter and parameter binding.
 
 Evaluate composite/partial/covering or expression indexes only where the workload supports them; discuss ordinary B-tree limitations for substring matching. A search extension is optional and requires a deployment/fallback decision. Do not turn substring matching into prefix matching merely to claim an index win.
 
@@ -22,7 +22,7 @@ Evaluate composite/partial/covering or expression indexes only where the workloa
 
 ## Supplied application support
 
-Use **Orders → Order history / Order totals by product** in the existing application. `OrderHistoryController` validates bounded inputs and supplies page metadata. `OrderHistoryRepository` contains the actual SQL and inline TODOs. Offset browsing, filters and reporting are working baselines; cursor requests return `501 EXERCISE_INCOMPLETE` until 009 is implemented. Existing `/workspace/orders` and learner work from 006 stay separate.
+Use **Orders → Order history / Order totals by product** in the existing application. `OrderHistoryController` validates bounded inputs and supplies page metadata. `OrderHistoryRepository` contains the actual SQL and inline TODOs. Offset browsing, filters and reporting are working baselines; V1 remains the working baseline; V2 history/report and cursor requests return `501 EXERCISE_INCOMPLETE` until their marked gaps are implemented. Existing `/workspace/orders` and learner work from 006 stay separate.
 
 Optional workload: from `practice/order-service/`, with the Compose database running, run:
 
@@ -31,6 +31,10 @@ docker compose exec -T postgres psql -U orders -d orders -v ON_ERROR_STOP=1 < sc
 ```
 
 For the rootless database, connect with psql using the existing local credentials and execute `\i scripts/seed-production-query-workload.sql` from that directory. This inserts 30,000 deterministic orders and 6,000 invoices into the real tables, with timestamp ties, missing invoices and skew across up to three existing products. It changes order counts/history, does not reserve stock, skips an empty catalog, and does not reset existing data. Re-running preserves existing fixture records rather than changing their timestamps or quantities. Use a disposable development dataset if existing counts must remain unchanged. Do not run the seed on production.
+
+## V1/V2 record
+
+Preserve the V1 implementation and its initial plan. Add concise V1 comments explaining the observed work, then implement the candidate in V2. Record both SQL versions, bind values, result checks and comparable plans using the [comparison template](../docs/query-evidence/comparison-template.md). V1/V2 query labels are not Flyway migration numbers. Adding indexes can change both versions' plans: retain the pre-index evidence and identify the schema/index state of every run. Do not overwrite V1 or publish learner implementation automatically.
 
 ## Verification and publication
 

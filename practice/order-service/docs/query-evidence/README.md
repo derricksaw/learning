@@ -1,6 +1,15 @@
 # Query evidence
 
-Exercises 007–011 use this directory for sanitised plans and measured comparisons. Add the exercise's named Markdown file when you start it; no benchmark result or completed optimisation is supplied.
+Exercises 007–013 use this directory for sanitised plans and measured comparisons. Add the exercise's named Markdown file when you start it; no benchmark result or completed optimisation is supplied.
+
+## V1/V2 comparison workflow
+
+1. Keep V1 runnable, capture EXPLAIN and add your interpretation as comments next to its SQL.
+2. Write the proposed improvement in V2 and state the measured hypothesis.
+3. Compare results, plans, query count and timing under documented dataset/index/cache conditions.
+4. Preserve both versions and their evidence; explain improvements and regressions instead of overwriting history.
+
+Use the [comparison template](comparison-template.md). The app's version selectors expose V1 baseline and V2 candidate paths. Version/payload/schema compatibility and production rollout are a later learning topic in the repository queue, not supplied release automation.
 
 For each comparison, record:
 
@@ -24,3 +33,9 @@ The staged preparation also built successfully from a clean checkout excluding l
 ![Working Orders history with bounded offset pages](assets/order-history-desktop.png)
 
 [Mobile preview with the explicit unfinished cursor path](assets/order-history-mobile.png).
+
+## V1/V2 and report-source preparation checks
+
+The frontend production build and backend package build passed, including a clean staged checkout excluding learner solutions. Manual API checks confirmed the original V1 pages/report, live report metadata, invalid-version/source 400s and explicit 501s for V2, cursor, materialized reads/refresh and Redis reads/invalidation. Browser checks confirmed page navigation, report source selectors, visible refresh/invalidation gaps and no uncaught browser errors. The revised note was rendered and inspected. Materialized refresh/caching themselves remain unimplemented and unverified learner work.
+
+![Report version and source controls with live-generation metadata](assets/order-report-sources.png)

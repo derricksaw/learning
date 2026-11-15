@@ -68,3 +68,11 @@ No operation is retried automatically by the frontend. A network timeout can lea
 Ordering is `created_at DESC, id ASC`. With more results, `nextCursor` is `{createdAt, id}` from the last returned row, preserving timestamp precision; `nextOffset` is supplied only in offset mode. There is no exact total count. Invalid parameters return `400 INVALID_REQUEST`. Unimplemented cursor requests return `501 EXERCISE_INCOMPLETE`, including the first cursor page.
 
 `GET /workspace/order-report` returns the first 100 catalog products ordered by product ID with `{productId, productName, orders, units, invoices, billedMinor}`. Zero-child products have zero totals. Amounts are integer minor units in the app's fixed MYR currency. Both endpoints are available through `/api/a` and `/api/b`; existing endpoints keep their contracts.
+
+## V1/V2 query comparison and report sources
+
+History and the existing list-shaped `/workspace/order-report` accept `version=v1|v2`, default `v1`. V1 preserves the executable baseline. V2 history and V2 live reports return `501 EXERCISE_INCOMPLETE` until implemented. Cursor mode belongs to V2; a V1 cursor request explicitly returns 501 rather than silently changing the baseline.
+
+`GET /workspace/order-report-view?source=live|materialized|redis&version=v1|v2` returns `{items, source, version, generatedAt, cacheStatus}`. `items` retains the existing report row fields. Live V1 works with cacheStatus `bypass`; materialized reads/refresh and Redis cache reads/invalidation are learner-owned 501 paths. Generation time must reflect computation or refresh, not merely a cache-hit request time. Unknown versions/sources return 400.
+
+`POST /workspace/order-report-view/refresh?version=v1|v2` requests materialized refresh; `DELETE /workspace/order-report-view/cache?version=v1|v2` requests scoped cache invalidation. Successful learner implementations return 204. These are local learning endpoints; no materialization/cache algorithm or production authorization boundary is supplied.

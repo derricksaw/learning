@@ -130,6 +130,49 @@ Changing an existence check to a join can duplicate orders if multiple matches a
 
 Partial indexes cover only qualifying rows and need predicates the planner can establish; prepared statement plans may affect eligibility. Covering indexes can reduce heap access, but index-only scans also depend on visibility information. Every additional index consumes space and increases write maintenance. [Partial indexes](https://www.postgresql.org/docs/17/indexes-partial.html), [index-only scans](https://www.postgresql.org/docs/17/indexes-index-only-scans.html)
 
+## Keep the baseline and improve a separate version
+
+Use **V1** for the original working query and **V2** for your candidate. Query-version names are separate from Flyway migration numbers and API compatibility versions. Keep the V1 SQL readable and executable; do not replace it with a comment containing an obsolete query.
+
+| Record | V1 baseline | V2 candidate |
+|---|---|---|
+| SQL and parameters | Preserve the original and explain each expensive node | State the specific change and its hypothesis |
+| Dataset and indexes | Record the initial schema/index state | Record new index definitions or statistics changes |
+| Result contract | Record expected rows, flags, ordering and page boundaries | Establish equivalence, or explicitly document a pagination contract change |
+| Measurements | Save plans and repeated timings before adding indexes | Compare plans, buffers, loops and timings under comparable conditions |
+| Conclusion | Identify measured work rather than declaring every scan bad | Explain improvements, regressions, write cost and limitations |
+
+Adding an index changes the environment for **both** versions. Preserve the pre-index V1 plan, then optionally run V1 and V2 with the same new indexes to separate query-shape effects from index effects. Do not remove a shared production index merely to recreate an experiment; use the development dataset or recorded evidence.
+
+In code, annotate V1 with what you observed after EXPLAIN, and implement the change in V2. Keep the complete sanitised plan and parameters in the exercise evidence file. A temporary comparison selector is useful in this learning app; choosing how to release a production version is a separate versioning/change-control topic.
+
+## Materialized views and Redis caching
+
+Optimising a live query reduces its work. Materialization and caching instead **reuse previously computed results**, introducing a freshness contract.
+
+| Source | What a read does | What can be stale? | Additional work to measure |
+|---|---|---|---|
+| Live SQL | Computes the current query result under its database snapshot | Other concurrent commits outside that snapshot | Query work on each request |
+| PostgreSQL materialized view | Reads stored query results, potentially through its own indexes | Source changes after the last refresh snapshot | Refresh work, reader blocking and storage |
+| Redis result cache | Returns a stored application result on a hit | Database changes after the cached computation | Cold misses, serialization, network time, expiry and invalidation |
+
+**Worked timeline:** a report totals 100 at 10:00. A new order adds 20 at 10:01. A live query can see 120; a materialized view or cached result may still show 100 until its refresh/invalidation policy takes effect. Show the computation/refresh time separately from the current request time; serving an old value quickly does not make it current.
+
+PostgreSQL materialized views are not automatically kept up to date. Ordinary refresh can block readers. Concurrent refresh has prerequisites: an already populated view and an eligible unique index covering all rows using plain columns. Even concurrent refresh is a database workload to budget and monitor. [Materialized view refresh](https://www.postgresql.org/docs/17/sql-refreshmaterializedview.html)
+
+For Redis, cache-aside means checking the cache, computing on a miss and storing an expiring result. A TTL limits key lifetime, not the number of concurrent misses, and is not a complete invalidation strategy. Choose stable namespaced keys, a serialization version and bounded expiry deliberately. Spring Data Redis supports TTL configuration, but its cache defaults do not supply an expiration automatically. [Redis cache configuration](https://docs.spring.io/spring-data/redis/reference/redis/redis-cache.html)
+
+| Failure or race | Decision to demonstrate |
+|---|---|
+| Many requests miss an expired key | How to bound repeated recomputation without claiming exactly-once execution |
+| An order commits during refresh/fill | Which snapshot the result represents and how stale values are repaired |
+| A delayed fill arrives after invalidation | Whether it can republish stale data; use a defined ownership/version/invalidation strategy |
+| Redis is unavailable or contains malformed JSON | Whether to fail, serve a bounded stale value, or fall back with a protected database budget |
+| A cached schema changes between V1 and V2 | How key/payload versions avoid incompatible deserialization or mixed results |
+| Cache contents disappear | How the system rebuilds without losing authoritative database state |
+
+Do not label a cache miss as a hit, stamp stale results with a new generation time, or benchmark only warm-cache requests. Exercise 012 implements the materialized report path; 013 implements Redis caching of the same real report after live-query evidence exists.
+
 ## Worked SQL optimisation examples
 
 The examples use illustrative shipment tables with these relationships:
@@ -450,5 +493,23 @@ An N+1 read can also be slow while every query is fast: one shipment-list call f
    <summary>Show answer</summary>
 
    It may also execute an expensive exact count, perform per-row remote calls, serialize large child collections, wait for a connection or block behind other work. Capture all queries and round trips for the request; optimise the measured bottleneck while preserving the API contract.
+
+   </details>
+
+10. You saved the V1 SQL but added an index before capturing its plan. Can a later V1/V2 comparison isolate the index's contribution?
+
+   <details>
+   <summary>Show answer</summary>
+
+   Not by itself: the index can change both plans. Record the environment with each measurement. Preserve a pre-index baseline, then compare both query versions under the same post-index conditions if useful. Do not attribute every timing difference to the SQL rewrite.
+
+   </details>
+
+11. Why is a fast materialized-view or Redis read not enough evidence of an improved report?
+
+   <details>
+   <summary>Show answer</summary>
+
+   It may serve old or incorrect data. Demonstrate the allowed age, result correctness for the represented snapshot, refresh/fill work, cold misses and failure behaviour. The write/refresh/invalidation paths and rebuild cost are part of the design, not just the warm read.
 
    </details>

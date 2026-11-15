@@ -103,3 +103,9 @@ Exercise [006](requirements/006-normalise-suppliers-and-optimise-orders.md) uses
 Exercises [007–011](requirements/007-explain-production-order-queries.md) form a production SQL optimisation track: plan diagnosis, filters/search/indexes, pagination, related-data retrieval and aggregate reporting. In **Orders**, use **Order history** for bounded filtered pages and **Order totals by product** for reporting. Offset mode works; cursor mode reports exercise 009's missing implementation until completed. Work in `OrderHistoryRepository`; your 006 solution remains separate.
 
 Optional development workload data in `scripts/seed-production-query-workload.sql` populates the same application tables with skew, timestamp ties and partially invoiced orders. It changes the app's history/counts without reserving stock. Read the exercise instructions before seeding. See the [API contract](docs/api.md) for filters and page metadata.
+
+### Keep V1 and implement V2
+
+The history and report panels have separate query-version selectors. V1 preserves the baseline for EXPLAIN comments; V2 initially returns an explicit unfinished-exercise error. Keep both implementations and use the [comparison template](docs/query-evidence/comparison-template.md). Shared indexes can affect both plans, so save the original V1 evidence first.
+
+Report source options add [012 — Materialized reports](requirements/012-materialize-product-order-reports.md) and [013 — Redis report caching](requirements/013-cache-product-order-reports.md), with refresh/invalidation controls and actual generation/cache-status metadata. These paths remain 501 until implemented. Version rollout and change control is queued as a later topic in the root learning index.

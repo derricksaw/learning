@@ -30,11 +30,10 @@ public class OrderHistoryRepository {
             row.getInt("quantity"), row.getString("status"),
             row.getObject("created_at", OffsetDateTime.class), row.getBoolean("has_invoice"));
 
-    public List<Row> offsetPage(int fetchSize, int offset, Long productId,
+    public List<Row> offsetPageV1(int fetchSize, int offset, Long productId,
             LocalDate from, LocalDate to, String query) {
-        // TODO 007: explain this complete statement and record its plan before changing it.
-        // TODO 008: improve measured filter/search/order access paths while preserving UTC-day semantics.
-        // TODO 010: evaluate bounded related-data retrieval without dropping or duplicating parent orders.
+        // TODO 007: annotate V1 with EXPLAIN observations; preserve this baseline SQL.
+        // Record complete plans/parameters in docs/query-evidence/007-plans.md.
         // The casted correlated count deliberately preserves the original exercise's slow baseline.
         var sql = new StringBuilder("""
                 SELECT o.id, o.product_id, i.product_name, o.quantity, o.status, o.created_at,
@@ -66,6 +65,14 @@ public class OrderHistoryRepository {
         return jdbc.query(sql.toString(), ROW, parameters.toArray());
     }
 
+    public List<Row> offsetPageV2(int fetchSize, int offset, Long productId,
+            LocalDate from, LocalDate to, String query) {
+        // TODO 008: implement the measured filter/search/order improvement without changing V1.
+        // TODO 010: choose and justify bounded invoice retrieval; preserve parent rows and ordering.
+        throw new OrderProblem(HttpStatus.NOT_IMPLEMENTED, "EXERCISE_INCOMPLETE",
+                "Exercises 008/010: implement V2 in OrderHistoryRepository.offsetPageV2");
+    }
+
     public List<Row> cursorPage(int fetchSize, OffsetDateTime afterCreatedAt, UUID afterId,
             Long productId, LocalDate from, LocalDate to, String query) {
         // TODO 009: implement first/next cursor pages with identical filters and mixed-direction ordering.
@@ -74,8 +81,8 @@ public class OrderHistoryRepository {
                 "Exercise 009: implement cursor pagination in OrderHistoryRepository.cursorPage");
     }
 
-    public List<ProductReport> productReport() {
-        // TODO 011: reduce repeated report work; preserve one row per product, zero totals and invoice sums.
+    public List<ProductReport> productReportV1() {
+        // TODO 011: annotate the V1 report plan, preserving it for comparison with V2.
         return jdbc.query("""
                 SELECT i.product_id, i.product_name,
                        (SELECT count(*) FROM purchase_order o WHERE o.product_id = i.product_id) AS orders,
@@ -91,4 +98,10 @@ public class OrderHistoryRepository {
                         row.getLong("orders"), row.getLong("units"), row.getLong("invoices"),
                         row.getLong("billed_minor")));
     }
+    public List<ProductReport> productReportV2() {
+        // TODO 011: implement and explain a measured improvement; keep V1 and the report contract intact.
+        throw new OrderProblem(HttpStatus.NOT_IMPLEMENTED, "EXERCISE_INCOMPLETE",
+                "Exercise 011: implement V2 in OrderHistoryRepository.productReportV2");
+    }
+
 }
