@@ -80,3 +80,11 @@ PostgreSQL data survives normal stops. Redis ownership is deliberately ephemeral
 The app has no authentication, tenant boundary, payment integration, tax model, legal invoice numbering or real PDF renderer. The current price is an explicitly labelled fixture. Read projections return the latest 100 orders/invoices rather than an unbounded history. The API has not been load-tested or hardened for public exposure. Redis is one development node with no fencing or renewal; it reduces duplicate work rather than proving strict exclusive execution during partitions or failover.
 
 These boundaries are part of the exercise design. Review [the distributed-concurrency note](../../../software-design/distributed-concurrency.md) for the guarantees and [the requirement index](../requirements/README.md) for learner-owned implementation work.
+
+## Fulfillment packing module
+
+The packing module models a fulfillment order using the Sales order ID and quantity.
+Its Spring MVC adapter calls a use case that coordinates a plain Java aggregate and a repository port.
+The JDBC adapter locks the Sales row before reading packing progress for a command, including the first write.
+The lock spans the state decision and save within the same transaction.
+Packing progress has its own table and is read through the packing resource.

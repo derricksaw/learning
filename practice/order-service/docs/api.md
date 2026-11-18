@@ -76,3 +76,11 @@ History and the existing list-shaped `/workspace/order-report` accept `version=v
 `GET /workspace/order-report-view?source=live|materialized|redis&version=v1|v2` returns `{items, source, version, generatedAt, cacheStatus}`. `items` retains the existing report row fields. Live V1 works with cacheStatus `bypass`; materialized reads/refresh and Redis cache reads/invalidation are learner-owned 501 paths. Generation time must reflect computation or refresh, not merely a cache-hit request time. Unknown versions/sources return 400.
 
 `POST /workspace/order-report-view/refresh?version=v1|v2` requests materialized refresh; `DELETE /workspace/order-report-view/cache?version=v1|v2` requests scoped cache invalidation. Successful learner implementations return 204. These are local learning endpoints; no materialization/cache algorithm or production authorization boundary is supplied.
+
+## Packing progress
+
+Exercise [014](../requirements/014-model-packing-progress.md) exposes
+`GET /orders/{orderId}/packing` and `PUT /orders/{orderId}/packing`.
+The PUT body contains `packedQuantity`, the absolute number of units packed.
+Both return `orderId`, `orderedQuantity`, `packedQuantity` and `complete` on success.
+The command returns 501 `PACKING_UNFINISHED` until the domain exercise is implemented.

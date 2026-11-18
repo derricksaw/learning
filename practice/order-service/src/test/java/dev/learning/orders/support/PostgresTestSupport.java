@@ -35,7 +35,7 @@ public abstract class PostgresTestSupport {
 
     @BeforeEach
     void resetDatabase() {
-        jdbc.execute("TRUNCATE invoice_document, order_invoice, inventory_adjustment, purchase_order, inventory");
+        jdbc.execute("TRUNCATE packing_progress, invoice_document, order_invoice, inventory_adjustment, purchase_order, inventory");
         jdbc.update("INSERT INTO inventory (product_id, available) VALUES (1, 3)");
     }
 
