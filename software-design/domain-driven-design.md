@@ -1,8 +1,45 @@
-# Domain-driven design
+# Repository architecture and design patterns
+
+This repository connects design notes to working features in Order Lab. Use the [root index](../README.md) to find concepts, the [exercise index](../practice/order-service/requirements/README.md) to find implementation work, and the [Order Lab design document](../practice/order-service/docs/design.md) for runtime and operational details.
+
+## Repository and runtime boundaries
+
+Topic directories such as `software-design/`, `database/`, and `production/` hold the learning notes. The exercise requirements, application code, and runtime documentation live together under `practice/order-service/`, so each exercise can point to the feature and its implementation in the same checkout.
+
+```mermaid
+flowchart LR
+    UI["React operations console"] --> Proxy["Vite or Nginx proxy"]
+    Proxy --> A["Order Lab API A"]
+    Proxy --> B["Order Lab API B"]
+    A --> PG[("PostgreSQL")]
+    B --> PG
+    A --> Redis[("Redis")]
+    B --> Redis
+```
+
+Both APIs run the same Java application from `practice/order-service/`. The console can route requests to either instance to make cross-process behavior visible. PostgreSQL holds durable business state shared across both instances. Redis coordinates temporary work such as invoice document rendering. Each JVM has its own carrier-call capacity counter.
+
+## Design approaches in Order Lab
+
+| Approach | Where it appears | Why it fits |
+|---|---|---|
+| Layered architecture | Order controller, service, and JDBC repositories | HTTP handles the transport, the service controls the transaction, and repositories handle SQL. Order placement can reserve stock and insert the order atomically. |
+| Feature modules | Packing, shipping, and invoicing packages | Related changes live together. A shipping integration change can stay within the shipping feature when its contract holds. |
+| Domain-driven design (DDD) | Packing progress | The packing model names the business operation and owns the transition rule. The Sales order ID and quantity supply the identity and target. |
+| Ports and adapters | Carrier gateway and packing repository | A contract gives the caller a stable interface. The shipping use case calls a gateway implemented by the simulator, and the packing use case calls a repository implemented with JDBC. |
+| Read projections | Workspace order history and reports | Queries shape data for screens and reports. They can join or aggregate data directly without loading a write model for each row. |
+
+These approaches address different kinds of change. A feature can use a domain model for writes, an adapter for persistence, and a projection for reads. In this application, feature boundaries share a deployment and a database. Extracting a separate service would add a network contract, independent failure modes, and a plan for cross-service consistency.
+
+### Follow an order across the approaches
+
+When a customer orders three units, the order service reserves three units and inserts a placed order in one transaction. A worker later records packing progress through a different endpoint. The packing exercise provides a database lock to serialize competing writes for the order and leaves the progress rule for the learner to implement. The order-history screen uses a read projection optimized for display. A successful order transaction, a valid packing transition, and a useful history query each need different evidence.
+
+## Domain-driven design in Fulfillment
 
 An order for three units can be **placed** in Sales, **partially packed** in Fulfillment and **invoiced** in Billing at the same time. A shared `Order.status` would force those independent facts into one field. Domain-driven design (DDD) builds software around the language and rules people use to make business decisions.
 
-## Strategic design
+### Strategic design
 
 Start with a concrete conversation with domain experts. Ask what “complete” means, who can declare it and what happens when the work only partly succeeds. Write those examples in the **ubiquitous language**, the shared vocabulary used in conversations, tests and code within a bounded context.
 
@@ -21,7 +58,7 @@ A **subdomain** is a part of the business problem. A core subdomain differentiat
 
 Cross-context relationships also need ownership. A customer–supplier relationship makes downstream needs part of upstream planning. A published language gives partners an explicit data contract. An anti-corruption layer translates foreign fields or meanings into the local model, such as converting a carrier's generic status codes into fulfillment outcomes. See [Eric Evans’s DDD Reference](https://www.domainlanguage.com/ddd/reference/).
 
-## Tactical patterns
+### Tactical patterns
 
 An **invariant** is a rule that must hold after a successful change. For packing, the recorded total stays between zero and the ordered quantity. It can advance, and submitting the same total again has the same effect. A correction would need its own business policy.
 
@@ -37,7 +74,7 @@ An **invariant** is a rule that must hold after a successful change. For packing
 
 Keep aggregates small enough to change independently. For example, including every order in a warehouse aggregate would make unrelated packing requests compete for the same write boundary. Concerned consumers can react to a committed packing-completion event. If delivery must survive process failure, persist the event with the state change using an [outbox](reliable-asynchronous-operations.md) and make its consumer safe to retry.
 
-## Application architecture
+### Ports and adapters in the packing module
 
 DDD helps decide what the model means and where rules belong. **Ports and adapters** gives the model and its use cases a way to work with HTTP and storage. Read these arrows as source-code dependencies.
 
@@ -54,7 +91,7 @@ The controller translates an HTTP request into a use-case call and maps failures
 
 A layered application can give the same domain model its own layer. Hexagonal architecture emphasizes the boundary between business logic and outside technology. A modular monolith can use either organization inside its modules. For a simple list or lookup, a direct read query returning a DTO often suffices. Reach for a behavioral model where business rules change or several entry points need to enforce the same decision. See [separation of concerns](separation-of-concerns-coupling-and-cohesion.md).
 
-## Follow a command under contention
+### Follow a packing command under contention
 
 Order 42 needs three units packed. The command carries an absolute total, so a retry of “record 2” cannot add another two units.
 
@@ -71,7 +108,25 @@ To verify the design, submit 2, retry 2, submit 3, then submit 2 again and read 
 
 ## Check your understanding
 
-1. Why can Sales and Fulfillment use different models for order 42?
+1. Two API instances share one PostgreSQL database. Why can each instance allow two active carrier calls while the fleet can make four?
+
+   <details>
+   <summary>Show answer</summary>
+
+   Each JVM owns a separate capacity counter. Atomic updates serialize claims against that counter only. A fleet-wide limit would need shared coordination or an upstream quota.
+
+   </details>
+
+2. Where would you put a change to the order-history columns, a rule that rejects a packing transition, and a change to the carrier protocol?
+
+   <details>
+   <summary>Show answer</summary>
+
+   Change the history projection and its consumers for display fields, the packing aggregate for the business rule, and the carrier adapter for the protocol. These changes touch different contracts. The order-history query tests should assert the resulting fields, a domain review should trace valid and rejected transitions, and an adapter check should inspect the request and response mapping.
+
+   </details>
+
+3. Why can Sales and Fulfillment use different models for order 42?
 
    <details>
    <summary>Show answer</summary>
@@ -80,7 +135,7 @@ To verify the design, submit 2, retry 2, submit 3, then submit 2 again and read 
 
    </details>
 
-2. Two workers load the same packing total and choose different updates. Where does each part of the protection live?
+4. Two workers load the same packing total and choose different updates. Where does each part of the protection live?
 
    <details>
    <summary>Show answer</summary>
@@ -89,7 +144,7 @@ To verify the design, submit 2, retry 2, submit 3, then submit 2 again and read 
 
    </details>
 
-3. A reporting screen needs only the current packing totals for 100 orders. What would you build?
+5. A reporting screen needs only the current packing totals for 100 orders. What would you build?
 
    <details>
    <summary>Show answer</summary>
@@ -100,4 +155,4 @@ To verify the design, submit 2, retry 2, submit 3, then submit 2 again and read 
 
 ## Practice
 
-Apply these ideas in [014 — Model packing progress](../practice/order-service/requirements/014-model-packing-progress.md).
+Start with [001 — Place orders without overselling](../practice/order-service/requirements/001-place-orders.md) for layers and transaction ownership. Use [003 — Protect carrier calls with local CAS capacity](../practice/order-service/requirements/003-claim-local-capacity.md) to trace a gateway call and its per-instance limit. For tactical DDD and persistence boundaries, use [014 — Model packing progress](../practice/order-service/requirements/014-model-packing-progress.md) and trace the command from HTTP through the aggregate to PostgreSQL.

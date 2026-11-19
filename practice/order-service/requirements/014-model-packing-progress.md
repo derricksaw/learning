@@ -2,7 +2,7 @@
 
 **Status** ready
 
-Read [domain-driven design](../../../software-design/domain-driven-design.md) before starting.
+Read [Domain-driven design in Fulfillment](../../../software-design/domain-driven-design.md#domain-driven-design-in-fulfillment) before starting.
 
 Fulfillment records an absolute packed quantity against an order. Sales owns the ordered quantity. A packing update can advance progress up to that quantity. Repeating the current total is safe, including after packing finishes. A lower total is a rejected transition.
 
