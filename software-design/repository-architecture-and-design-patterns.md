@@ -150,6 +150,7 @@ flowchart TB
     class CORE,LA core
     class IP,OP port
     class LDB,HDB,HA,LP infra
+    LAY ~~~ HEX ~~~ VSA
 ```
 
 Read the arrows carefully: **solid arrows** mean source-code imports/calls; **dotted arrows** mean implementing an interface. In Layered architecture, dependencies point downward toward the database and SDKs. In Hexagonal architecture (also called Ports & Adapters, and closely related to Onion and Clean Architecture), the **Dependency Inversion Principle** reverses the lower arrow: the core defines the **port** (interface) in its own business vocabulary, and the infrastructure **adapter** implements it.
@@ -282,10 +283,10 @@ flowchart TB
     CALLER -->|load & save whole aggregate| REPO["PackingRepository (Port)"]
     ROOT -.->|emits fact| EVT["Domain Event: OrderSealed"]
 
-    classDef root fill:#eff6ff,stroke:#2563eb,color:#0f172a
-    classDef boundary fill:#f0fdf4,stroke:#15803d,color:#0f172a
-    class ROOT root
-    class REPO boundary
+    classDef aggRoot fill:#eff6ff,stroke:#2563eb,color:#0f172a
+    classDef portBox fill:#f0fdf4,stroke:#15803d,color:#0f172a
+    class ROOT aggRoot
+    class REPO portBox
 ```
 
 | Building block | Purpose | Concrete example |
@@ -313,15 +314,15 @@ sequenceDiagram
     participant DB as PostgreSQL (packing_orders)
 
     Note over DB: Initial state: SKU-A packed=1/2, version=4
-    S1->>DB: Load PackingOrder #1042 (version=4, packed=1)
-    S2->>DB: Load PackingOrder #1042 (version=4, packed=1)
+    S1->>DB: Load PackingOrder 1042 (version=4, packed=1)
+    S2->>DB: Load PackingOrder 1042 (version=4, packed=1)
     Note over S1: In-memory check: 1 + 1 <= 2 (PASS)
     Note over S2: In-memory check: 1 + 1 <= 2 (PASS)
     S1->>DB: UPDATE ... SET packed=2, version=5 WHERE id=1042 AND version=4
     DB-->>S1: 1 row updated (COMMIT)
     S2->>DB: UPDATE ... SET packed=2, version=5 WHERE id=1042 AND version=4
-    DB-->>S2: 0 rows updated -> OptimisticLockConflict (ROLLBACK)
-    Note over S2: Reloads version=5 (packed=2), retries; 2+1 > 2 rejected by domain invariant!
+    DB-->>S2: 0 rows updated (OptimisticLockConflict -> ROLLBACK)
+    Note over S2: Reloads version=5 (packed=2)<br/>Retry rejects 2 + 1 exceeding 2
 ```
 
 **Distinguishing responsibilities (what is automatic vs. what you must build):**
@@ -414,7 +415,7 @@ flowchart LR
         RS --> SQL["Targeted SQL / Keyset Pagination"]
         RS --> CACHE["Materialized View / Redis Cache"]
         SQL --> DB
-        CACHE -.->|refreshed asynchronously| DB
+        CACHE -.->|async refresh| DB
     end
 
     classDef write fill:#eff6ff,stroke:#2563eb,color:#0f172a
@@ -474,14 +475,14 @@ flowchart TB
     INV --> DB
     INV --> RED
 
-    classDef layer fill:#f8fafc,stroke:#64748b,color:#0f172a
-    classDef ddd fill:#eff6ff,stroke:#2563eb,color:#0f172a
-    classDef read fill:#f0fdf4,stroke:#15803d,color:#0f172a
-    classDef infra fill:#fff7ed,stroke:#c2410c,color:#0f172a
-    class CORE layer
-    class PACK,SHIP,INV ddd
-    class WORK read
-    class DB,RED infra
+    classDef layerNode fill:#f8fafc,stroke:#475569,color:#0f172a
+    classDef moduleNode fill:#eff6ff,stroke:#2563eb,color:#0f172a
+    classDef readNode fill:#f0fdf4,stroke:#15803d,color:#0f172a
+    classDef infraNode fill:#fff7ed,stroke:#c2410c,color:#0f172a
+    class C1,C1N layerNode
+    class P1,P2,S1,S2,I1,I2 moduleNode
+    class W1,W2 readNode
+    class DB,RED infraNode
 ```
 
 Notice why each choice fits its neighborhood:
