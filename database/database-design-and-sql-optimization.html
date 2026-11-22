@@ -731,8 +731,31 @@
         <p class="label">Section 01 · Relational Modeling &amp; Safe Evolutions</p>
         <h2 class="section-title">Design from <strong>invariants and dependencies</strong>, not API payloads</h2>
         <p class="prose-narrow">
-          Normalization eliminates insertion, update, and deletion anomalies by ensuring every non-trivial determinant is a key. Step through the normal forms and trigger live anomalies below.
+          <strong>Normalization</strong> is the process of structuring tables so every fact lives in one authoritative place—eliminating insertion, update, and deletion anomalies. Review the four building-block terms below, then step through 0NF → BCNF and trigger live anomalies.
         </p>
+      </div>
+
+      <!-- Plain-English Primer for Section 1 Concepts -->
+      <div class="layer">
+        <p class="label">Foundations · What These Terms Mean</p>
+        <div class="card-grid">
+          <div class="notice">
+            <p class="label">Functional Dependency (X → Y)</p>
+            <p class="muted">A business rule saying that knowing <code class="inline">X</code> always determines one exact value of <code class="inline">Y</code> (e.g., <code class="inline">supplier_code → supplier_email</code>). The left side (<code class="inline">X</code>) is called the <strong>determinant</strong>.</p>
+          </div>
+          <div class="notice">
+            <p class="label">Candidate Key vs. Superkey</p>
+            <p class="muted">A <strong>candidate key</strong> is a minimal set of columns that uniquely identifies a row (removing any column breaks uniqueness). A <strong>superkey</strong> is any candidate key plus optional extra columns.</p>
+          </div>
+          <div class="notice">
+            <p class="label">Prime vs. Non-Prime Attribute</p>
+            <p class="muted">A <strong>prime attribute</strong> is a column that belongs to at least one candidate key. Any other column is <strong>non-prime</strong>.</p>
+          </div>
+          <div class="notice">
+            <p class="label">What BCNF Is (vs. 3NF)</p>
+            <p class="muted"><strong>Boyce-Codd Normal Form (BCNF)</strong> is a stricter version of 3NF: <em>every</em> determinant <code class="inline">X</code> in a non-trivial dependency <code class="inline">X → Y</code> must be a superkey. It closes a rare 3NF loophole when overlapping composite keys exist.</p>
+          </div>
+        </div>
       </div>
 
       <!-- Interactive Normalization Step-Through -->
@@ -842,6 +865,7 @@ CREATE TABLE order_items (
         <div class="section-head" style="padding-bottom: var(--space-sm);">
           <p class="label">Zero-Downtime Schema Evolution</p>
           <h3 class="subhead">Safe Expand / Contract Migration Sequence</h3>
+          <p class="muted"><strong>What Expand / Contract is:</strong> a multi-step deployment pattern for changing a live schema without downtime—first <em>expand</em> by adding new tables/columns alongside old ones, backfill and switch running apps safely while both versions coexist, and only <em>contract</em> (drop old columns) once no reader or writer depends on them.</p>
         </div>
         <div class="btn-row" role="group" aria-label="Migration phases">
           <button type="button" class="seg-btn is-active" id="mig-btn-0" onclick="setMigStep(0)">1 · Expand &amp; Seed Parents</button>
@@ -892,6 +916,7 @@ CREATE TABLE order_items (
         <div class="layer">
           <p class="label">PostgreSQL 10+ Declarative Partitioning</p>
           <h3 class="subhead">Interactive Partition Pruning Simulator</h3>
+          <p class="muted"><strong>What it is:</strong> splitting one logical table into smaller physical child tables (<em>partitions</em>) inside the <strong>same</strong> database by <strong>Range</strong> (intervals like dates), <strong>List</strong> (discrete values like regions), or <strong>Hash</strong> (even bucket spread). <strong>Partition pruning</strong> lets PostgreSQL skip irrelevant partitions before scanning.</p>
           <div class="equal-grid">
             <div class="field-group">
               <label class="field-label" for="part-strategy">Partitioning Method</label>
@@ -979,6 +1004,7 @@ CREATE TABLE order_items (
       <div class="layer">
         <p class="label">Multi-Node Distributed PostgreSQL (Citus Architecture)</p>
         <h3 class="subhead">Shard-Key Co-Location vs. Cross-Shard Fan-Out &amp; Resharding</h3>
+        <p class="muted"><strong>What Horizontal Sharding is:</strong> spreading rows of the same table across multiple independent database servers (<em>worker nodes</em>) using a <strong>shard key</strong> (such as <code class="inline">tenant_id</code>) so writes and storage scale beyond one machine. <strong>Co-location</strong> means placing related tables (e.g., <code class="inline">orders</code> and <code class="inline">order_items</code>) using the same shard key so their rows land on the same worker and can join locally without network shuffling.</p>
         <div class="table-wrap">
           <table class="carbon-table">
             <thead>
@@ -1021,8 +1047,31 @@ CREATE TABLE order_items (
         <p class="label">Section 03 · Execution Plans &amp; Index Architecture</p>
         <h2 class="section-title">Decode <strong>EXPLAIN (ANALYZE, BUFFERS)</strong> bottom-up</h2>
         <p class="prose-narrow">
-          Never guess why a query is slow or whether an index helps. Click any plan node below to inspect inclusive timing, buffer hits vs. OS reads, loop multipliers, and row-estimate gaps.
+          <strong>EXPLAIN</strong> prints the step-by-step execution tree PostgreSQL plans to run; adding <strong>ANALYZE</strong> actually executes the query to record real timings and row counts; adding <strong>BUFFERS</strong> reports how many 8 KB pages came from cache vs. OS reads. Click any node below to inspect how the numbers diagnose bottlenecks.
         </p>
+      </div>
+
+      <!-- Plain-English EXPLAIN Glossary -->
+      <div class="layer">
+        <p class="label">Foundations · Reading Plan Metrics</p>
+        <div class="card-grid">
+          <div class="notice">
+            <p class="label">cost vs. actual time</p>
+            <p class="muted"><code class="inline">cost=start..total</code> is the planner's abstract estimate (not milliseconds). <code class="inline">actual time=first..last</code> is real elapsed milliseconds <em>per loop</em>.</p>
+          </div>
+          <div class="notice">
+            <p class="label">shared hit vs. read vs. temp</p>
+            <p class="muted"><code class="inline">shared hit</code> = pages already in PostgreSQL's shared buffer cache; <code class="inline">read</code> = requested from the OS; <code class="inline">temp</code> = spilled to temporary disk files when a sort/hash exceeds <code class="inline">work_mem</code>.</p>
+          </div>
+          <div class="notice">
+            <p class="label">Seq Scan vs. Index / Index-Only Scan</p>
+            <p class="muted"><strong>Seq Scan</strong> reads the whole table; <strong>Index Scan</strong> seeks matching pointers in an index then fetches table rows (the <em>heap</em>); <strong>Index-Only Scan</strong> answers straight from the index when all needed columns are included.</p>
+          </div>
+          <div class="notice">
+            <p class="label">Nested Loop vs. Hash Join</p>
+            <p class="muted"><strong>Nested Loop</strong> probes the inner table once per outer row (great for tiny outer sets, catastrophic for 96k rows). <strong>Hash Join</strong> builds an in-memory hash table of one side and streams the other once.</p>
+          </div>
+        </div>
       </div>
 
       <!-- Interactive EXPLAIN (ANALYZE, BUFFERS) Decoder -->
@@ -1061,6 +1110,7 @@ CREATE TABLE order_items (
       <div class="layer">
         <p class="label">Index Strategy &amp; Sargability Explorer</p>
         <h3 class="subhead">Equality → Sort/Range Order, Leftmost Prefix &amp; Specialized Indexes</h3>
+        <p class="muted"><strong>What these mean:</strong> A <strong>B-Tree index</strong> stores sorted key values so lookups jump straight to matching entries instead of scanning the table. A <strong>composite index</strong> on <code class="inline">(a, b, c)</code> is sorted by <code class="inline">a</code> first, then <code class="inline">b</code> within equal <code class="inline">a</code> (the <em>leftmost-prefix rule</em>). A predicate is <strong>sargable</strong> (<em>Search ARGument ABLE</em>) when the column stays bare (<code class="inline">created_at &gt;= ...</code>) rather than wrapped in a function (<code class="inline">DATE(created_at)</code>). <strong>Partial indexes</strong> index only a filtered subset of rows; <strong>expression indexes</strong> store a computed value like <code class="inline">lower(email)</code>; <strong>covering (<code class="inline">INCLUDE</code>) indexes</strong> carry extra payload columns so queries avoid reading the table heap.</p>
         <p class="muted">Target schema: <code class="inline">CREATE INDEX idx_orders_cust_created ON orders (customer_id, created_at DESC, id DESC) INCLUDE (total_amount);</code></p>
 
         <div class="field-group">
@@ -1119,7 +1169,7 @@ CREATE TABLE order_items (
         <p class="label">Section 04 · Correctness-First Rewrites &amp; Java Data Access</p>
         <h2 class="section-title">Production <strong>SQL + JdbcTemplate</strong> patterns</h2>
         <p class="prose-narrow">
-          Eliminate three-valued NULL bugs, join fan-out inflation, linear OFFSET degradation, and N+1 round trips. Toggle between anti-patterns and production fixes below.
+          Each pattern below introduces a specific SQL or data-access mechanism—<strong>semi-joins</strong> (<code class="inline">EXISTS</code>), <strong>SQL three-valued logic</strong> (<code class="inline">TRUE / FALSE / UNKNOWN</code>), <strong>join fan-out</strong> (multiplying rows when joining multiple 1:N tables), <strong>keyset/cursor pagination</strong> (seeking directly past the last seen row instead of counting skipped rows with <code class="inline">OFFSET</code>), and <strong>N+1 queries</strong> (running 1 parent query plus N per-row child queries in a loop).
         </p>
       </div>
 
@@ -1182,8 +1232,27 @@ CREATE TABLE order_items (
         <p class="label">Section 05 · Materialized Views, Redis Caching &amp; Self-Check</p>
         <h2 class="section-title">Freshness vs. speed &amp; <strong>mastery verification</strong></h2>
         <p class="prose-narrow">
-          Materialized views and Redis cache-aside both trade strict freshness for predictable latency. Compare their lock and invalidation failure modes, then test your recall.
+          When even a well-indexed live query is too expensive to run on every request, teams reuse precomputed results. Review what each caching layer actually is below, then compare their lock, staleness, and invalidation tradeoffs.
         </p>
+      </div>
+
+      <!-- Plain-English Caching Mechanisms Primer -->
+      <div class="layer">
+        <p class="label">Foundations · What Each Layer Is</p>
+        <div class="card-grid">
+          <div class="notice">
+            <p class="label">Materialized View (PostgreSQL)</p>
+            <p class="muted">Unlike a regular <code class="inline">VIEW</code> (which re-runs its SQL on every read), a <strong>Materialized View</strong> physically stores the query's output rows on disk like a table and updates them only when you run <code class="inline">REFRESH MATERIALIZED VIEW</code>.</p>
+          </div>
+          <div class="notice">
+            <p class="label">Redis Cache-Aside</p>
+            <p class="muted">An application-managed caching pattern: read from in-memory Redis first; on a <em>cache miss</em>, query PostgreSQL, write the serialized result into Redis with an expiration (<strong>TTL</strong>), and return it.</p>
+          </div>
+          <div class="notice">
+            <p class="label">Cache Stampede &amp; Racing Fills</p>
+            <p class="muted">A <strong>stampede</strong> happens when a hot key expires and hundreds of concurrent requests miss simultaneously, hammering PostgreSQL. A <strong>racing fill</strong> occurs when a slow DB query writes an old value back into Redis <em>after</em> a newer write invalidated the key.</p>
+          </div>
+        </div>
       </div>
 
       <!-- Live SQL vs Materialized View vs Redis Cache-Aside -->
@@ -1416,9 +1485,9 @@ CREATE TABLE order_items (
         }
       },
       {
-        title: `BCNF: Every Determinant Must Be a Superkey`,
-        desc: `3NF has one loophole: it permits X → Y if Y is a prime attribute (part of a candidate key). In tutoring(StudentID, Subject, Professor), each professor teaches 1 subject (Professor → Subject), so Professor is not a superkey even though Subject is prime. Decompose on Professor → Subject. Note: adding a surrogate id never removes an existing FD!`,
-        fds: `Before fix: (StudentID, Subject) → Professor AND Professor → Subject (violates BCNF). After fix: professor_subject(professor PK, subject) + student_professor(student_id, professor).`,
+        title: `BCNF (Boyce-Codd Normal Form): Every Determinant Must Be a Superkey`,
+        desc: `What BCNF is: a stricter rule than 3NF requiring that for EVERY non-trivial functional dependency X → Y, the left-hand side X must be a superkey. Why 3NF isn't always enough: 3NF has a narrow loophole allowing X → Y when Y is a prime attribute (part of a candidate key). Example: in tutoring(StudentID, Subject, Professor), each professor teaches only 1 subject (Professor → Subject), and a student has 1 professor per subject ((StudentID, Subject) → Professor). Subject is prime, so 3NF passes—yet Professor is NOT a superkey, causing anomalies whenever a professor has 0 students or changes subjects. Fix: split on Professor → Subject. (Note: adding a surrogate id never removes an existing functional dependency!)`,
+        fds: `Before fix: (StudentID, Subject) → Professor AND Professor → Subject (passes 3NF because Subject is prime, violates BCNF because Professor is not a superkey). After fix: professor_subject(professor PK, subject) + student_professor(student_id, professor).`,
         tables: [
           {
             name: `professor_subject (BCNF)`,
@@ -1512,30 +1581,35 @@ ALTER TABLE products
     const ladderSteps = [
       {
         title: `1 · Query & Index Tuning`,
+        what: `Improving how your existing single PostgreSQL database answers queries—by rewriting SQL access patterns (sargable ranges, keyset cursors, pre-aggregation) and adding targeted B-tree, partial, or covering indexes so PostgreSQL touches far fewer rows and pages.`,
         when: `Always start here. Latency spikes on growing tables from missing indexes, non-sargable predicates, or N+1 queries.`,
         solves: `Fixes 80%+ of slow queries with zero architectural complexity using EXPLAIN (ANALYZE, BUFFERS), composite B-trees, and keyset pagination.`,
         next: `Escalate only when single-table bloat, VACUUM contention, or historical scans remain bounded by table size.`
       },
       {
         title: `2 · Archival & Declarative Partitioning`,
+        what: `Splitting one large logical table into smaller physical child tables (partitions) inside the SAME PostgreSQL instance—by time range, discrete list value, or hash—so queries only scan matching partitions (partition pruning) and old chunks can be detached/dropped as a unit.`,
         when: `Tables reach tens/hundreds of millions of rows, queries filter on a consistent time/tenant key, or bulk deletes bloat tables.`,
         solves: `Partition pruning skips irrelevant chunks; DETACH/DROP partition expires old data instantly without VACUUM storms; ~60% lower vacuum overhead.`,
         next: `Escalate to replicas/caching when read QPS saturates single-node CPU or IOPS.`
       },
       {
         title: `3 · Caching & Read Replicas`,
+        what: `Serving repeated reads from precomputed or copied data instead of hitting the primary database every time—via in-memory Redis cache-aside, persisted PostgreSQL Materialized Views, or streaming Read Replicas (standby copies that handle read-only queries).`,
         when: `Read traffic vastly outnumbers writes, or expensive analytical aggregations run repeatedly on slowly changing data.`,
         solves: `Offloads read pressure via Redis cache-aside, PostgreSQL Materialized Views (REFRESH CONCURRENTLY), and streaming read replicas.`,
         next: `Escalate when write throughput or dataset size exceeds one primary database's capacity.`
       },
       {
         title: `4 · Vertical / Domain Split`,
-        when: `Distinct bounded contexts (e.g., billing vs. telemetry logs) compete for buffer cache, locks, and connection slots.`,
-        solves: `Isolates failure domains and write amplification by moving independent domains onto dedicated PostgreSQL clusters.`,
+        what: `Splitting data by COLUMNS or BUSINESS DOMAINS rather than by rows: either a vertical table split (moving large, rarely-read columns like blobs/descriptions into a 1:1 companion table to keep hot rows narrow) or a vertical database/domain split (moving separate business domains like Billing vs. Telemetry onto independent PostgreSQL servers).`,
+        when: `Distinct bounded contexts (e.g., billing vs. telemetry logs) compete for buffer cache, locks, and connection slots, or wide unused columns bloat hot table scans.`,
+        solves: `Isolates failure domains, keeps hot pages dense in buffer cache, and separates write amplification across dedicated PostgreSQL clusters.`,
         next: `Escalate to horizontal sharding only when a single domain table exceeds single-node storage or write ceiling.`
       },
       {
         title: `5 · Horizontal Sharding (Citus / Multi-Node)`,
+        what: `Distributing ROWS of the same logical table across multiple independent database servers (shards/workers) using a shard key (e.g., tenant_id). Unlike single-node partitioning, each server owns only its slice of rows—scaling both storage and write throughput beyond one machine.`,
         when: `Write throughput and active working set of a single domain outgrow the largest practical single PostgreSQL instance.`,
         solves: `Distributes shards across worker nodes while co-locating parent/child tables on tenant_id for local worker JOINs and ACID guarantees.`,
         next: `Tradeoff: introduces distributed coordination for global uniqueness, cross-shard transactions, global Top-K, and online resharding.`
@@ -2034,6 +2108,10 @@ Set<UUID> invoiced = new HashSet<>(jdbc.queryForList(
       if (!s || !box) return;
       box.innerHTML = `
         <h3 class="subhead">${s.title}</h3>
+        <div class="notice">
+          <p class="label">What It Is</p>
+          <p class="muted">${s.what}</p>
+        </div>
         <div class="card-grid">
           <div class="notice">
             <p class="label">When to Apply</p>
