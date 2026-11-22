@@ -1,0 +1,2446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="artifact-type" content="narrative">
+  <meta name="design-style" content="carbon">
+  <title>File Systems, NAS, OSS &amp; Production File Handling</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@1.43.0/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+
+      /* Page and surfaces (Carbon) */
+      --background: #ffffff;
+      --surface-container-low: #f4f4f4;
+      --surface-container: #f4f4f4;
+      --surface-container-high: #e0e0e0;
+      --surface-code: #161616;
+      --on-surface-code: #f4f4f4;
+
+      /* Ink */
+      --on-surface: #161616;
+      --on-surface-variant: #525252;
+
+      /* Rules */
+      --outline: #8d8d8d;
+      --outline-variant: #e0e0e0;
+
+      /* Accents */
+      --primary: #0f62fe;
+      --primary-hover: #0043ce;
+      --on-primary: #ffffff;
+      --primary-container: #d0e2ff;
+      --on-primary-container: #161616;
+      --secondary: #6f6f6f;
+      --tertiary: #198038;
+      --tertiary-container: #defbe6;
+      --error: #da1e28;
+      --error-container: #fff1f1;
+      --on-error: #ffffff;
+      --warning: #b28600;
+      --warning-container: #fcf4d6;
+      --positive: #198038;
+      --focus: #0f62fe;
+
+      /* Data series */
+      --data-1: #0f62fe;
+      --data-2: #6929c4;
+      --data-3: #005d5d;
+      --data-4: #9f1853;
+      --data-context: #8d8d8d;
+
+      /* Fonts */
+      --font-headline: 'IBM Plex Sans', sans-serif;
+      --font-body: 'IBM Plex Sans', sans-serif;
+      --font-label: 'IBM Plex Mono', monospace;
+
+      /* Shape */
+      --rounded: 0.125rem;
+      --rounded-lg: 0.25rem;
+      --rounded-full: 0.75rem;
+
+      /* Style effects */
+      --shadow-1: 0 2px 6px rgb(0 0 0 / 0.1);
+      --shadow-2: 0 4px 12px rgb(0 0 0 / 0.12);
+      --rule: 1px solid var(--outline-variant);
+      --field-rule: 1px solid var(--outline);
+      --indicator: 2px solid var(--primary);
+      --accent-bar-primary: 3px solid var(--primary);
+      --accent-bar-positive: 3px solid var(--tertiary);
+      --accent-bar-error: 3px solid var(--error);
+      --accent-bar-warning: 3px solid var(--warning);
+
+      /* Type scale (Narrative) */
+      --display-size: clamp(2.125rem, 1.35rem + 3.2vw, 3.5rem);
+      --headline-size: clamp(1.5rem, 1.15rem + 1.5vw, 2.25rem);
+      --subhead-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+      --body-size: clamp(1rem, 0.96rem + 0.2vw, 1.0625rem);
+      --label-size: 0.75rem;
+
+      /* Spacing scale */
+      --space-xs: 0.25rem;
+      --space-sm: 0.5rem;
+      --space-md: 1rem;
+      --space-lg: 1.5rem;
+      --space-xl: 2.5rem;
+      --space-2xl: 4rem;
+      --space-3xl: 6rem;
+
+      /* Motion */
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+      --dur-micro: 120ms;
+      --dur-short: 220ms;
+      --dur-long: 420ms;
+    }
+
+    /* Base reset */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      overflow-x: clip;
+      margin: 0;
+      padding: 0;
+      background: var(--background);
+      color: var(--on-surface);
+      font-family: var(--font-body);
+      font-size: var(--body-size);
+      line-height: 1.55;
+      scroll-behavior: smooth;
+    }
+    header { position: static !important; }
+
+    .page-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--space-2xl);
+      padding: var(--space-xl) var(--space-lg) var(--space-3xl);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .page-grid * { min-width: 0; }
+
+    /* Focus rings */
+    :focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    /* Typography */
+    .label {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--on-surface-variant);
+      display: block;
+    }
+    .headline {
+      font-family: var(--font-headline);
+      font-weight: 300;
+      letter-spacing: 0;
+      line-height: 1.18;
+      margin: 0;
+    }
+    .headline strong { font-weight: 600; }
+
+    h1.display-title {
+      font-size: var(--display-size);
+      font-weight: 300;
+      line-height: 1.12;
+      margin: var(--space-sm) 0 var(--space-md);
+    }
+    h1.display-title strong { font-weight: 600; }
+
+    h2.section-title {
+      font-size: var(--headline-size);
+      font-weight: 300;
+      line-height: 1.2;
+      margin: var(--space-xs) 0 var(--space-sm);
+    }
+    h2.section-title strong { font-weight: 600; }
+
+    h3.sub-title {
+      font-size: var(--subhead-size);
+      font-weight: 600;
+      line-height: 1.25;
+      margin: 0 0 var(--space-sm);
+    }
+
+    p {
+      margin: 0 0 var(--space-md);
+      max-width: 68ch;
+    }
+    .lede {
+      font-size: var(--subhead-size);
+      color: var(--on-surface-variant);
+      max-width: 65ch;
+      line-height: 1.45;
+      margin-bottom: var(--space-lg);
+    }
+    .muted {
+      color: var(--on-surface-variant);
+      font-size: 0.875rem;
+    }
+    code.inline-code {
+      font-family: var(--font-label);
+      font-size: 0.875em;
+      background: var(--surface-container-high);
+      color: var(--on-surface);
+      padding: 0.1rem 0.35rem;
+      border-radius: var(--rounded);
+    }
+
+    /* Header & Key Tiles */
+    .hero-header {
+      border-bottom: var(--rule);
+      padding-bottom: var(--space-xl);
+    }
+    .hero-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-md);
+      border-bottom: var(--rule);
+      padding-bottom: var(--space-sm);
+      margin-bottom: var(--space-lg);
+    }
+    .key-tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+      gap: var(--space-md);
+      margin-top: var(--space-lg);
+    }
+    .key-tile {
+      background: var(--surface-container);
+      padding: var(--space-md);
+      border-radius: 0;
+    }
+    .key-tile--lead {
+      border-bottom: var(--indicator);
+    }
+    .key-value {
+      font-family: var(--font-label);
+      font-weight: 300;
+      font-size: 1.875rem;
+      line-height: 1.15;
+      margin: var(--space-xs) 0;
+      color: var(--on-surface);
+    }
+
+    /* Section Jump Nav */
+    .jump-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+      border-bottom: var(--rule);
+      padding-bottom: var(--space-md);
+    }
+    .jump-link {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      text-decoration: none;
+      color: var(--on-surface);
+      background: var(--surface-container);
+      padding: var(--space-sm) var(--space-md);
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      transition: background-color var(--dur-micro) var(--ease-out);
+    }
+    .jump-link:hover {
+      background: var(--surface-container-high);
+      color: var(--primary);
+    }
+
+    /* Section Structure */
+    .doc-section {
+      display: grid;
+      gap: var(--space-lg);
+      padding-top: var(--space-md);
+      border-top: var(--rule);
+    }
+    .section-head {
+      border-bottom: var(--rule);
+      padding-bottom: var(--space-md);
+    }
+
+    /* Carbon Layers */
+    .layer {
+      background: var(--surface-container);
+      border-radius: 0;
+      padding: var(--space-lg);
+    }
+    .layer .layer {
+      background: var(--surface-container-high);
+      padding: var(--space-md);
+    }
+    .layer-white {
+      background: var(--background);
+      border: var(--rule);
+      padding: var(--space-md);
+    }
+
+    /* Grids */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+      gap: var(--space-lg);
+    }
+    .grid-asymmetric {
+      display: grid;
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: var(--space-lg);
+      align-items: start;
+    }
+    .grid-asymmetric-rev {
+      display: grid;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      gap: var(--space-lg);
+      align-items: start;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+      gap: var(--space-md);
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--font-body);
+      font-size: 0.9375rem;
+      font-weight: 400;
+      min-height: 44px;
+      padding: var(--space-sm) var(--space-lg) var(--space-sm) var(--space-md);
+      border-radius: 0;
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      text-align: left;
+      transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--on-primary);
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    .btn-secondary:hover {
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+    }
+    .btn-ghost {
+      background: var(--surface-container);
+      color: var(--on-surface);
+      border-color: var(--outline-variant);
+    }
+    .btn-ghost:hover { background: var(--surface-container-high); }
+    .btn[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+      border-bottom: var(--rule);
+    }
+    .tab-btn {
+      font-family: var(--font-body);
+      font-size: 0.9375rem;
+      font-weight: 400;
+      min-height: 44px;
+      padding: var(--space-sm) var(--space-md);
+      background: transparent;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      color: var(--on-surface-variant);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+    }
+    .tab-btn:hover {
+      background: var(--surface-container);
+      color: var(--on-surface);
+    }
+    .tab-btn.is-active {
+      color: var(--on-surface);
+      font-weight: 600;
+      border-bottom: var(--indicator);
+      background: var(--surface-container-low);
+    }
+
+    /* Tags */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 var(--space-sm);
+      border-radius: var(--rounded-full);
+      font-size: var(--label-size);
+      font-family: var(--font-body);
+      font-weight: 500;
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      white-space: nowrap;
+    }
+    .tag--positive {
+      background: var(--tertiary-container);
+      color: var(--tertiary);
+    }
+    .tag--error {
+      background: var(--error-container);
+      color: var(--error);
+    }
+    .tag--warning {
+      background: var(--warning-container);
+      color: var(--on-surface);
+    }
+    .tag--neutral {
+      background: var(--surface-container-high);
+      color: var(--on-surface);
+    }
+
+    /* Notifications / Callout strips */
+    .strip {
+      background: var(--surface-container);
+      padding: var(--space-md);
+      border-left: var(--accent-bar-primary);
+    }
+    .strip--positive { border-left: var(--accent-bar-positive); }
+    .strip--error { border-left: var(--accent-bar-error); }
+    .strip--warning { border-left: var(--accent-bar-warning); }
+
+    /* Tables */
+    .table-wrap {
+      overflow-x: auto;
+      border-top: var(--rule);
+      border-bottom: var(--rule);
+    }
+    table.carbon-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9375rem;
+      text-align: left;
+    }
+    table.carbon-table th {
+      background: var(--surface-container-high);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: var(--space-md);
+      color: var(--on-surface);
+      border-bottom: var(--rule);
+      vertical-align: bottom;
+    }
+    table.carbon-table td {
+      padding: var(--space-md);
+      border-bottom: var(--rule);
+      vertical-align: top;
+    }
+    table.carbon-table tbody tr:nth-child(even) {
+      background: var(--surface-container-low);
+    }
+    table.carbon-table tbody tr.is-highlighted {
+      background: var(--primary-container);
+    }
+    table.carbon-table .mono-cell {
+      font-family: var(--font-label);
+      font-size: 0.85rem;
+    }
+
+    /* Form Controls */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    .control-label {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--on-surface-variant);
+    }
+    select.carbon-select {
+      height: 40px;
+      background: var(--background);
+      border: 0;
+      border-bottom: var(--field-rule);
+      padding: 0 var(--space-xl) 0 var(--space-md);
+      font-family: var(--font-body);
+      font-size: 0.9375rem;
+      color: var(--on-surface);
+      border-radius: var(--rounded);
+      cursor: pointer;
+    }
+    .seg-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+    }
+    .seg-btn {
+      min-height: 44px;
+      padding: var(--space-xs) var(--space-md);
+      background: var(--background);
+      border: 1px solid var(--outline-variant);
+      color: var(--on-surface);
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--ease-out);
+    }
+    .seg-btn:hover { background: var(--surface-container-high); }
+    .seg-btn.is-active {
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      border-color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Interactive Diagram Nodes */
+    .vfs-stack {
+      display: grid;
+      gap: var(--space-xs);
+    }
+    .vfs-layer-btn {
+      width: 100%;
+      text-align: left;
+      background: var(--background);
+      border: var(--rule);
+      border-left: 3px solid var(--outline);
+      padding: var(--space-md);
+      cursor: pointer;
+      min-height: 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-md);
+      font-family: var(--font-body);
+      color: var(--on-surface);
+      transition: background-color var(--dur-micro) var(--ease-out);
+    }
+    .vfs-layer-btn:hover { background: var(--surface-container-high); }
+    .vfs-layer-btn.is-active {
+      background: var(--primary-container);
+      border-left: var(--accent-bar-primary);
+      color: var(--on-primary-container);
+    }
+
+    /* SVG Diagram Containers */
+    .diagram-box {
+      background: var(--background);
+      border: var(--rule);
+      padding: var(--space-md);
+    }
+    .diagram-box svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* Multipart Part Simulator */
+    .parts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(115px, 100%), 1fr));
+      gap: var(--space-sm);
+    }
+    .part-tile {
+      background: var(--background);
+      border: var(--rule);
+      padding: var(--space-sm);
+      font-family: var(--font-label);
+      font-size: 0.78rem;
+    }
+    .part-tile--ok { border-top: 3px solid var(--tertiary); }
+    .part-tile--err {
+      border-top: 3px solid var(--error);
+      background: var(--error-container);
+    }
+    .part-tile--wait { border-top: 3px solid var(--outline); }
+
+    /* State Machine Nodes */
+    .state-flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    .state-node {
+      min-height: 44px;
+      padding: var(--space-sm) var(--space-md);
+      background: var(--background);
+      border: var(--rule);
+      font-family: var(--font-label);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--on-surface);
+      transition: background-color var(--dur-micro) var(--ease-out);
+    }
+    .state-node:hover { background: var(--surface-container-high); }
+    .state-node.is-active {
+      background: var(--primary);
+      color: var(--on-primary);
+      border-color: var(--primary);
+    }
+    .state-node--quarantine.is-active {
+      background: var(--error);
+      color: var(--on-error);
+      border-color: var(--error);
+    }
+
+    /* Checklist */
+    .checklist-list {
+      display: grid;
+      gap: var(--space-sm);
+    }
+    .check-item {
+      background: var(--background);
+      border: var(--rule);
+      padding: var(--space-md);
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: var(--space-md);
+      align-items: start;
+    }
+    .check-item.is-checked {
+      background: var(--surface-container-low);
+      border-left: var(--accent-bar-positive);
+    }
+    .check-box-btn {
+      width: 44px;
+      height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-container);
+      border: 1px solid var(--outline);
+      cursor: pointer;
+      color: var(--on-surface);
+    }
+    .check-item.is-checked .check-box-btn {
+      background: var(--tertiary);
+      border-color: var(--tertiary);
+      color: var(--on-primary);
+    }
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: var(--surface-container-high);
+      margin-top: var(--space-sm);
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      width: 0%;
+      transition: width var(--dur-short) var(--ease-out);
+    }
+
+    /* Code Block */
+    .code-shell {
+      background: var(--surface-code);
+      color: var(--on-surface-code);
+      padding: var(--space-md);
+      overflow-x: auto;
+      font-family: var(--font-label);
+      font-size: 0.84rem;
+      line-height: 1.55;
+      margin: 0;
+    }
+    .code-header {
+      background: var(--surface-container-high);
+      padding: var(--space-sm) var(--space-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-md);
+      border-bottom: var(--rule);
+    }
+    .code-annotations {
+      display: grid;
+      gap: var(--space-sm);
+    }
+    .annotation-row {
+      background: var(--background);
+      border-left: var(--accent-bar-primary);
+      padding: var(--space-sm) var(--space-md);
+    }
+
+    /* Failure Mode Cards */
+    .failure-card {
+      background: var(--surface-container);
+      padding: var(--space-md);
+      display: grid;
+      gap: var(--space-sm);
+      border-top: 3px solid var(--error);
+    }
+    .failure-toggle {
+      background: var(--background);
+      border: var(--rule);
+      min-height: 44px;
+      padding: var(--space-xs) var(--space-md);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      color: var(--primary);
+      justify-self: start;
+    }
+    .failure-toggle:hover { background: var(--primary-container); color: var(--on-primary-container); }
+
+    /* Flashcards */
+    .flashcard-stage {
+      background: var(--surface-container);
+      padding: var(--space-lg);
+      display: grid;
+      gap: var(--space-md);
+    }
+    .flashcard-face {
+      background: var(--background);
+      border: var(--rule);
+      border-left: var(--accent-bar-primary);
+      padding: var(--space-xl) var(--space-lg);
+      min-height: 190px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: var(--space-sm);
+      cursor: pointer;
+    }
+    .flashcard-face.is-answer {
+      border-left: var(--accent-bar-positive);
+      background: var(--surface-container-low);
+    }
+
+    /* Quiz */
+    .quiz-option {
+      width: 100%;
+      min-height: 48px;
+      text-align: left;
+      padding: var(--space-md);
+      background: var(--background);
+      border: var(--rule);
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-size: 0.9375rem;
+      color: var(--on-surface);
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-md);
+      transition: background-color var(--dur-micro) var(--ease-out);
+    }
+    .quiz-option:hover:not([disabled]) { background: var(--surface-container-high); }
+    .quiz-option.is-correct {
+      background: var(--tertiary-container);
+      border-left: var(--accent-bar-positive);
+    }
+    .quiz-option.is-wrong {
+      background: var(--error-container);
+      border-left: var(--accent-bar-error);
+    }
+
+    /* List dividers */
+    .ruled-list > * + * {
+      border-top: var(--rule);
+      padding-top: var(--space-sm);
+    }
+    .ruled-list {
+      display: grid;
+      gap: var(--space-sm);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    @media (max-width: 820px) {
+      .grid-asymmetric, .grid-asymmetric-rev {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 640px) {
+      .page-grid {
+        padding: var(--space-md);
+        gap: var(--space-xl);
+      }
+      .layer { padding: var(--space-md); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-grid">
+
+    <!-- HERO HEADER -->
+    <header class="hero-header">
+      <div class="hero-meta-row">
+        <span class="label">Systems Architecture &amp; Security Field Guide</span>
+        <span class="tag">Grounded in Kernel VFS, Cloud Storage &amp; OWASP</span>
+      </div>
+      <h1 class="display-title">File Systems, NAS, OSS &amp; <strong>Production File Handling</strong></h1>
+      <p class="lede">
+        Selecting the wrong storage primitive creates metadata bottlenecks, broken POSIX expectations, or app-server memory exhaustion. Explore how local block filesystems, network file shares, and object stores diverge—and how production systems move, validate, and secure user files at scale.
+      </p>
+
+      <div class="key-tiles">
+        <div class="key-tile key-tile--lead">
+          <span class="label">S3 Object Durability</span>
+          <div class="key-value">11 9s</div>
+          <span class="muted">99.999999999% designed durability across flat bucket + key space</span>
+        </div>
+        <div class="key-tile">
+          <span class="label">Multipart Threshold</span>
+          <div class="key-value">&ge; 100 MB</div>
+          <span class="muted">Recommended object size for parallel 5 MB–5 GB part uploads</span>
+        </div>
+        <div class="key-tile">
+          <span class="label">Magic-Byte Probe</span>
+          <div class="key-value">512 B</div>
+          <span class="muted">Header slice inspected in worker without buffering full file</span>
+        </div>
+        <div class="key-tile">
+          <span class="label">Presigned URL Window</span>
+          <div class="key-value">300 s</div>
+          <span class="muted">Short-lived direct client-to-bucket credential TTL</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- QUICK JUMP NAV -->
+    <nav aria-label="Section index" class="jump-nav">
+      <a class="jump-link" href="#sec-1">01 / Storage Comparison</a>
+      <a class="jump-link" href="#sec-2">02 / Layer Internals</a>
+      <a class="jump-link" href="#sec-3">03 / Production Pipeline</a>
+      <a class="jump-link" href="#sec-4">04 / OWASP Security</a>
+      <a class="jump-link" href="#sec-5">05 / Java Examples</a>
+      <a class="jump-link" href="#sec-6">06 / Failure Modes &amp; Quiz</a>
+    </nav>
+
+    <!-- SECTION 1: STORAGE MODEL COMPARISON -->
+    <section id="sec-1" class="doc-section">
+      <div class="section-head">
+        <span class="label">01 / Intuition &amp; Workload Fit</span>
+        <h2 class="section-title">Start from the <strong>access pattern</strong>, not the protocol URL</h2>
+        <p>
+          Local POSIX block filesystems, shared NAS shares, and object stores solve fundamentally different concurrency and mutability problems. Choose based on whether workloads need in-place byte edits and POSIX locks, shared multi-host trees, or HTTP-addressed immutable blobs.
+        </p>
+      </div>
+
+      <!-- Comparison Filter Controls -->
+      <div class="layer">
+        <div class="hero-meta-row" style="margin-bottom: var(--space-md);">
+          <span class="label">Comparison Matrix — Filter Dimensions</span>
+          <div class="seg-group" role="group" aria-label="Filter matrix rows">
+            <button type="button" class="seg-btn is-active" onclick="filterMatrix('all', this)">All Dimensions</button>
+            <button type="button" class="seg-btn" onclick="filterMatrix('semantics', this)">Semantics &amp; Mutability</button>
+            <button type="button" class="seg-btn" onclick="filterMatrix('perf', this)">Latency &amp; Concurrency</button>
+            <button type="button" class="seg-btn" onclick="filterMatrix('cloud', this)">Kubernetes &amp; Cloud</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="carbon-table" id="storage-matrix">
+            <thead>
+              <tr>
+                <th>Dimension</th>
+                <th>Local POSIX / Block (ext4, XFS on EBS)</th>
+                <th>Shared NAS (NFSv3/v4, Amazon EFS, SMBv2/v3)</th>
+                <th>Object Storage / OSS (Amazon S3, Alibaba OSS, RustFS)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-cat="semantics">
+                <td><strong>Access Protocol</strong></td>
+                <td class="mono-cell">Local POSIX syscalls over block / iSCSI</td>
+                <td class="mono-cell">NFS v3/v4 (TCP 2049), SMB v2/v3, CIFS</td>
+                <td class="mono-cell">HTTP / HTTPS RESTful API (PUT, GET, DELETE)</td>
+              </tr>
+              <tr data-cat="semantics">
+                <td><strong>Namespace</strong></td>
+                <td>Hierarchical directory tree (inodes &amp; dentries)</td>
+                <td>Hierarchical directory tree of files and folders</td>
+                <td>Flat bucket + key namespace (folders are virtual prefixes)</td>
+              </tr>
+              <tr data-cat="semantics">
+                <td><strong>Mutability &amp; Locks</strong></td>
+                <td>Random read/write, in-place byte edits, POSIX locks, atomic rename, hard links</td>
+                <td>Full POSIX/SMB semantics; close-to-open consistency (NFS) or strong locking (SMB)</td>
+                <td>Immutable blobs; whole-object replacement only; no native file locking or atomic rename</td>
+              </tr>
+              <tr data-cat="perf">
+                <td><strong>Latency &amp; Throughput</strong></td>
+                <td class="mono-cell">Few microseconds / Tens of Gbps</td>
+                <td class="mono-cell">Milliseconds / Hundreds of Gbps (tracks filer)</td>
+                <td class="mono-cell">Tens of milliseconds / Hundreds of Gbps (scale-out HTTP)</td>
+              </tr>
+              <tr data-cat="perf">
+                <td><strong>Concurrency &amp; Sharing</strong></td>
+                <td>Single ECS/EC2 instance at a time (RWO)</td>
+                <td>Thousands of VMs / multi-pod concurrent random read-write</td>
+                <td>Millions of HTTP clients; concurrency managed via Versioning &amp; ETags</td>
+              </tr>
+              <tr data-cat="cloud">
+                <td><strong>Durability &amp; Resilience</strong></td>
+                <td>Volume-scoped; snapshots required for cross-AZ durability</td>
+                <td>Filer-dependent; Regional EFS replicates across multi-AZ mount targets</td>
+                <td>99.999999999% (11 9s) designed durability, geo-redundancy, Object Lock (WORM)</td>
+              </tr>
+              <tr data-cat="cloud">
+                <td><strong>Kubernetes Positioning</strong></td>
+                <td><code class="inline-code">ReadWriteOnce</code> (EBS / local PV) for single-pod databases</td>
+                <td><code class="inline-code">ReadWriteMany</code> via <code class="inline-code">csi-driver-nfs</code> (<code class="inline-code">nfs.csi.k8s.io</code>)</td>
+                <td>No native volume type; consume via AWS SDK / S3 API (avoid <code class="inline-code">s3fs-fuse</code> shim)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Interactive Workload Decision Helper -->
+      <div class="grid-asymmetric">
+        <div class="layer">
+          <span class="label">Interactive Decision Helper</span>
+          <h3 class="sub-title" style="margin-top: var(--space-xs);">Match your workload profile to a storage tier</h3>
+          <div style="display: grid; gap: var(--space-md); margin-top: var(--space-md);">
+            <div class="control-group">
+              <label class="control-label" for="dec-mutability">1. Write &amp; Update Behavior</label>
+              <select id="dec-mutability" class="carbon-select" onchange="updateDecision()">
+                <option value="inplace">In-place byte updates, appends, or database pages</option>
+                <option value="shared_edit">Collaborative edits, shared scratch, or builds/code trees</option>
+                <option value="worm">Write-once, read-many (media, user uploads, backups, artifacts)</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="dec-sharing">2. Host / Pod Sharing Scope</label>
+              <select id="dec-sharing" class="carbon-select" onchange="updateDecision()">
+                <option value="single">Single host or single Kubernetes pod</option>
+                <option value="multi">Multiple pods / nodes / VMs concurrently</option>
+                <option value="internet">Internet-scale web clients &amp; data pipelines</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="dec-latency">3. Latency &amp; Locking Requirement</label>
+              <select id="dec-latency" class="carbon-select" onchange="updateDecision()">
+                <option value="micro">Microsecond random IOPS + local POSIX</option>
+                <option value="ms_lock">Millisecond LAN + mandatory file locking / atomic rename</option>
+                <option value="http">HTTP latency acceptable; prioritize durability &amp; cost</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="layer" id="decision-output" style="border-bottom: var(--indicator);">
+          <span class="label">Recommended Primitive</span>
+          <div class="key-value" id="dec-title" style="font-size: 1.5rem; font-weight: 600; font-family: var(--font-headline);">Local POSIX / Block (EBS)</div>
+          <p id="dec-summary" style="margin-top: var(--space-sm);"></p>
+          <div class="strip" id="dec-k8s-note"></div>
+        </div>
+      </div>
+
+      <!-- Focused Callout: Gateways in front of Object Storage -->
+      <div class="layer">
+        <span class="label">Architectural Boundary — Hybrid File Gateways &amp; FUSE</span>
+        <h3 class="sub-title" style="margin-top: var(--space-xs);">What works and what breaks when putting NFS/SMB in front of Object Storage</h3>
+        <p>
+          Hybrid architectures often pair <strong>AWS DataSync</strong> (bulk transfer up to 10 Gbps, preserving POSIX UID/GID/timestamps as S3 object metadata) with an on-premises <strong>File Gateway</strong> (VMware ESXi, Hyper-V, KVM, or hardware appliance with up to 64 TB local cache and TLS encryption to S3). Because files and objects behave differently, gateway and FUSE layers fit specific access patterns only.
+        </p>
+        <div class="grid-2" style="margin-top: var(--space-md);">
+          <div class="strip strip--positive">
+            <span class="label" style="color: var(--tertiary);">What Works Well</span>
+            <ul class="ruled-list" style="margin-top: var(--space-sm);">
+              <li><strong>Write-once, read-many data:</strong> media, images, scientific datasets, and documents read sequentially.</li>
+              <li><strong>Ingest landing zones &amp; archives:</strong> cameras, instruments, or backup shares dropping immutable files.</li>
+              <li><strong>Cached user file shares:</strong> File Gateway acknowledges writes to local cache immediately, uploads asynchronously to S3, and syncs via the automated cache-refresh timer (e.g., 30-minute duration-since-last-access) or <code class="inline-code">RefreshCache</code> API.</li>
+            </ul>
+          </div>
+          <div class="strip strip--error">
+            <span class="label" style="color: var(--error);">What Breaks</span>
+            <ul class="ruled-list" style="margin-top: var(--space-sm);">
+              <li><strong>In-place updates &amp; line-by-line appends:</strong> databases, VM images, or live logs force full-object rewrites on object storage.</li>
+              <li><strong>Heavy small-file metadata activity:</strong> software builds and source trees incur per-object HTTP latency on every <code class="inline-code">stat</code>, create, or delete.</li>
+              <li><strong>Large directory renames &amp; strict locks:</strong> renaming a simulated prefix copies and deletes every object beneath it; S3 clients ignore file locks unless coordinated by a gateway.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: HOW EACH STORAGE LAYER WORKS -->
+    <section id="sec-2" class="doc-section">
+      <div class="section-head">
+        <span class="label">02 / Layer Internals</span>
+        <h2 class="section-title">How <strong>VFS, NAS, and OSS</strong> resolve a file under the hood</h2>
+        <p>
+          Inspect the internal kernel structures of POSIX filesystems, the multi-AZ mount architecture of network shares, and the flat key-prefix mechanics of object storage.
+        </p>
+      </div>
+
+      <!-- 2A: Linux VFS Explorer -->
+      <div class="layer">
+        <span class="label">2A / Local POSIX &amp; Linux Virtual File System (VFS)</span>
+        <h3 class="sub-title" style="margin-top: var(--space-xs);">Interactive Kernel Stack: Syscall to Disk Blocks</h3>
+
+        <div class="grid-asymmetric" style="margin-top: var(--space-md);">
+          <div class="vfs-stack" role="list" aria-label="Linux VFS layers">
+            <button type="button" class="vfs-layer-btn is-active" onclick="selectVfsLayer('syscall', this)">
+              <span><strong>1. Userspace Syscall</strong> <span class="muted">open(2), stat(2), read(2), write(2)</span></span>
+              <span class="tag">Process Context</span>
+            </button>
+            <button type="button" class="vfs-layer-btn" onclick="selectVfsLayer('dcache', this)">
+              <span><strong>2. Directory Entry Cache (dcache)</strong> <span class="muted">struct dentry</span></span>
+              <span class="tag">RAM Only</span>
+            </button>
+            <button type="button" class="vfs-layer-btn" onclick="selectVfsLayer('file', this)">
+              <span><strong>3. Open File Object</strong> <span class="muted">struct file &amp; FD table</span></span>
+              <span class="tag">Per-Open</span>
+            </button>
+            <button type="button" class="vfs-layer-btn" onclick="selectVfsLayer('inode', this)">
+              <span><strong>4. Inode &amp; Superblock</strong> <span class="muted">struct inode, struct super_block</span></span>
+              <span class="tag">Metadata vs Data</span>
+            </button>
+          </div>
+
+          <div class="layer-white" id="vfs-detail-panel">
+            <span class="label" id="vfs-detail-tag">Layer 1 / Userspace Boundary</span>
+            <h3 class="sub-title" id="vfs-detail-title" style="margin-top: var(--space-xs);">Userspace System Calls</h3>
+            <p id="vfs-detail-body"></p>
+            <div class="strip" id="vfs-detail-ops"></div>
+          </div>
+        </div>
+
+        <!-- Hard Link vs Symlink Interactive Comparison -->
+        <div class="layer-white" style="margin-top: var(--space-lg);">
+          <div class="hero-meta-row" style="margin-bottom: var(--space-md);">
+            <div>
+              <span class="label">Pointer Anatomy</span>
+              <h3 class="sub-title" style="margin: var(--space-xs) 0 0;">Hard Links vs. Symbolic Links (Symlinks)</h3>
+            </div>
+            <div class="seg-group" role="group" aria-label="Link type selector">
+              <button type="button" class="seg-btn is-active" onclick="setLinkView('hard', this)">Hard Link (Shared Inode)</button>
+              <button type="button" class="seg-btn" onclick="setLinkView('sym', this)">Symbolic Link (Path Pointer)</button>
+            </div>
+          </div>
+          <div class="grid-asymmetric-rev">
+            <div class="diagram-box" id="link-svg-box"></div>
+            <div id="link-desc-box" style="display: grid; gap: var(--space-sm);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2B & 2C: NAS and OSS Explorers -->
+      <div class="grid-2">
+        <!-- 2B: NAS Explorer -->
+        <div class="layer">
+          <span class="label">2B / Shared NAS (NFSv4, Amazon EFS, SMB)</span>
+          <h3 class="sub-title" style="margin-top: var(--space-xs);">Multi-Host Mount Architecture &amp; Bottlenecks</h3>
+          <div class="diagram-box" style="margin-bottom: var(--space-md);">
+            <svg viewBox="0 0 540 230" role="img" aria-label="Amazon EFS multi-AZ and on-premises mount architecture">
+              <rect x="8" y="8" width="160" height="58" fill="var(--surface-container)" stroke="var(--outline-variant)" />
+              <text x="18" y="28" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">AVAILABILITY ZONE A</text>
+              <text x="18" y="48" font-family="IBM Plex Sans" font-size="12" font-weight="600" fill="var(--on-surface)">EC2 / K8s Pods</text>
+
+              <rect x="190" y="8" width="160" height="58" fill="var(--surface-container)" stroke="var(--outline-variant)" />
+              <text x="200" y="28" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">AVAILABILITY ZONE B</text>
+              <text x="200" y="48" font-family="IBM Plex Sans" font-size="12" font-weight="600" fill="var(--on-surface)">EC2 / K8s Pods</text>
+
+              <rect x="372" y="8" width="160" height="58" fill="var(--surface-container)" stroke="var(--outline-variant)" />
+              <text x="382" y="28" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">ON-PREMISES (LINUX 4+)</text>
+              <text x="382" y="48" font-family="IBM Plex Sans" font-size="12" font-weight="600" fill="var(--on-surface)">Direct Connect / VPN</text>
+
+              <line x1="88" y1="66" x2="88" y2="104" stroke="var(--primary)" stroke-width="2" />
+              <line x1="270" y1="66" x2="270" y2="104" stroke="var(--primary)" stroke-width="2" />
+              <line x1="452" y1="66" x2="270" y2="104" stroke="var(--data-3)" stroke-width="2" stroke-dasharray="4 3" />
+
+              <rect x="18" y="104" width="140" height="40" fill="var(--primary-container)" stroke="var(--primary)" />
+              <text x="28" y="128" font-family="IBM Plex Mono" font-size="11" fill="var(--on-primary-container)">Mount Target AZ-A</text>
+
+              <rect x="200" y="104" width="140" height="40" fill="var(--primary-container)" stroke="var(--primary)" />
+              <text x="210" y="128" font-family="IBM Plex Mono" font-size="11" fill="var(--on-primary-container)">Mount Target AZ-B</text>
+
+              <text x="360" y="126" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">TCP Port 2049 (NFS)</text>
+
+              <line x1="88" y1="144" x2="270" y2="172" stroke="var(--outline)" stroke-width="1.5" />
+              <line x1="270" y1="144" x2="270" y2="172" stroke="var(--outline)" stroke-width="1.5" />
+
+              <rect x="40" y="172" width="460" height="48" fill="var(--surface-container-high)" stroke="var(--on-surface)" />
+              <text x="56" y="194" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--on-surface)">Regional Shared NAS / Amazon EFS File System</text>
+              <text x="56" y="211" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">POSIX UID/GID permissions · EFS Access Points · Encryption in transit &amp; at rest</text>
+            </svg>
+          </div>
+          <div class="seg-group" role="group" aria-label="NAS mechanics tabs">
+            <button type="button" class="seg-btn is-active" onclick="selectNasTopic('mount', this)">AZ Mount &amp; Access Points</button>
+            <button type="button" class="seg-btn" onclick="selectNasTopic('security', this)">POSIX &amp; SMB Auth</button>
+            <button type="button" class="seg-btn" onclick="selectNasTopic('bottleneck', this)">Locks &amp; Small Files</button>
+          </div>
+          <div class="strip" id="nas-topic-detail" style="margin-top: var(--space-md);"></div>
+        </div>
+
+        <!-- 2C: OSS / S3 Explorer -->
+        <div class="layer">
+          <span class="label">2C / Object Storage (OSS / Amazon S3)</span>
+          <h3 class="sub-title" style="margin-top: var(--space-xs);">Flat Key Namespace vs. Virtual Folder Illusion</h3>
+          <div class="seg-group" role="group" aria-label="OSS namespace view" style="margin-bottom: var(--space-md);">
+            <button type="button" class="seg-btn is-active" onclick="setOssView('flat', this)">Actual Flat Key Space</button>
+            <button type="button" class="seg-btn" onclick="setOssView('tree', this)">Console Prefix Illusion</button>
+          </div>
+          <div class="layer-white" id="oss-namespace-box" style="margin-bottom: var(--space-md);"></div>
+          <ul class="ruled-list">
+            <li><strong>Zero native directories:</strong> Renaming a folder means copying and deleting every object sharing that prefix.</li>
+            <li><strong>High-concurrency keys:</strong> Use generated UUID keys (e.g., <code class="inline-code">quarantine/{userId}/{uuid}</code>) to prevent hotspots and eliminate filename collisions.</li>
+            <li><strong>Lifecycle &amp; Immutability:</strong> Pair S3 Versioning + Object Lock (WORM) with Lifecycle rules to tier cold objects and abort incomplete multipart uploads.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: PRODUCTION FILE HANDLING ARCHITECTURE -->
+    <section id="sec-3" class="doc-section">
+      <div class="section-head">
+        <span class="label">03 / Production Architecture</span>
+        <h2 class="section-title">Decouple the <strong>control plane</strong> from the <strong>data plane</strong></h2>
+        <p>
+          Funneling large user uploads through application servers exhausts memory, connections, and CPU. Production systems authorize uploads in the API control plane, offload raw byte transfers directly to OSS via short-lived presigned URLs, and validate asynchronously.
+        </p>
+      </div>
+
+      <!-- 3A: Before / After Data Plane -->
+      <div class="layer">
+        <div class="hero-meta-row" style="margin-bottom: var(--space-md);">
+          <div>
+            <span class="label">3A / Data Plane Topology</span>
+            <h3 class="sub-title" style="margin: var(--space-xs) 0 0;">Anti-Pattern vs. Presigned Direct-to-OSS Pipeline</h3>
+          </div>
+          <div class="seg-group" role="group" aria-label="Architecture mode toggle">
+            <button type="button" class="seg-btn" onclick="setArchMode('before', this)">Before: App-Server Proxy (Anti-Pattern)</button>
+            <button type="button" class="seg-btn is-active" onclick="setArchMode('after', this)">After: Control / Data Plane Split</button>
+          </div>
+        </div>
+        <div class="grid-asymmetric">
+          <div class="diagram-box" id="arch-svg-box"></div>
+          <div class="layer-white" id="arch-detail-box"></div>
+        </div>
+      </div>
+
+      <!-- 3B: Multipart Upload Walkthrough -->
+      <div class="layer">
+        <div class="hero-meta-row" style="margin-bottom: var(--space-md);">
+          <div>
+            <span class="label">3B / Large Objects (&ge; 100 MB)</span>
+            <h3 class="sub-title" style="margin: var(--space-xs) 0 0;">Interactive 3-Phase Multipart Upload Walkthrough</h3>
+          </div>
+          <div class="seg-group" role="group" aria-label="Multipart phases">
+            <button type="button" class="seg-btn is-active" onclick="selectMultipartPhase(1, this)">1. Initiate</button>
+            <button type="button" class="seg-btn" onclick="selectMultipartPhase(2, this)">2. Parallel Parts + Retry</button>
+            <button type="button" class="seg-btn" onclick="selectMultipartPhase(3, this)">3. Complete / Abort</button>
+          </div>
+        </div>
+
+        <div class="grid-asymmetric-rev">
+          <div class="layer-white">
+            <span class="label" id="mp-phase-tag">Phase 1 / CreateMultipartUpload</span>
+            <h3 class="sub-title" id="mp-phase-title" style="margin-top: var(--space-xs);">Initiate Upload &amp; Issue UploadId</h3>
+            <p id="mp-phase-desc"></p>
+            <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-md);">
+              <button type="button" class="btn btn-secondary" onclick="simulatePartFailure()">Simulate Part 3 Network Drop</button>
+              <button type="button" class="btn btn-primary" onclick="retryFailedPart()">Retry Failed Part Only</button>
+            </div>
+          </div>
+
+          <div class="layer-white">
+            <div class="hero-meta-row" style="margin-bottom: var(--space-sm);">
+              <span class="label">Part Transmission State (5 MB–5 GB / Part)</span>
+              <span class="mono-cell" id="mp-status-readout">4/4 parts verified · CRC64NVME</span>
+            </div>
+            <div class="parts-grid" id="mp-parts-grid"></div>
+            <div class="strip strip--warning" style="margin-top: var(--space-md);">
+              <strong>Mandatory S3 Lifecycle Rule:</strong> Initiated multipart uploads do not expire on their own. Always attach an <code class="inline-code">AbortIncompleteMultipartUpload</code> lifecycle rule (e.g., 1–7 days) to purge abandoned part bytes and eliminate silent ghost storage bills.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3C: Metadata & State Machine -->
+      <div class="layer">
+        <span class="label">3C / Metadata &amp; Lifecycle State Machine</span>
+        <h3 class="sub-title" style="margin-top: var(--space-xs);">Separate raw bytes in OSS from state in your relational DB</h3>
+        <p>
+          Never rely on object listings as your source of truth. Persist a DB row keyed by UUID before issuing a presigned URL, drive transitions via storage events and worker results, and serve approved static assets through a CDN or ID-mapped handler.
+        </p>
+
+        <div class="state-flow" role="group" aria-label="File lifecycle states" style="margin-bottom: var(--space-md);">
+          <button type="button" class="state-node is-active" onclick="selectLifecycleState('PENDING', this)">PENDING</button>
+          <span class="muted" aria-hidden="true">&rarr;</span>
+          <button type="button" class="state-node" onclick="selectLifecycleState('UPLOADED', this)">UPLOADED</button>
+          <span class="muted" aria-hidden="true">&rarr;</span>
+          <button type="button" class="state-node" onclick="selectLifecycleState('SCANNING', this)">SCANNING</button>
+          <span class="muted" aria-hidden="true">&rarr;</span>
+          <button type="button" class="state-node" onclick="selectLifecycleState('AVAILABLE', this)">AVAILABLE</button>
+          <span class="muted" aria-hidden="true">/</span>
+          <button type="button" class="state-node state-node--quarantine" onclick="selectLifecycleState('QUARANTINED', this)">QUARANTINED</button>
+        </div>
+
+        <div class="grid-2">
+          <div class="layer-white" id="state-detail-panel"></div>
+          <div class="layer-white">
+            <span class="label">Relational Metadata Record Schema</span>
+            <table class="carbon-table" style="margin-top: var(--space-sm);">
+              <tbody>
+                <tr><td><strong>object_key</strong></td><td class="mono-cell">quarantine/{userId}/{uuid}</td></tr>
+                <tr><td><strong>original_filename</strong></td><td class="mono-cell">sanitized_display_name.pdf</td></tr>
+                <tr><td><strong>owner_id</strong></td><td class="mono-cell">authenticated session principal</td></tr>
+                <tr><td><strong>checksum_crc64</strong></td><td class="mono-cell">CRC64NVME / SHA-256 digest</td></tr>
+                <tr><td><strong>mime_detected</strong></td><td class="mono-cell">inspected from magic bytes</td></tr>
+                <tr><td><strong>status</strong></td><td class="mono-cell" id="schema-status-cell">PENDING</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: DEFENSE-IN-DEPTH FILE SECURITY -->
+    <section id="sec-4" class="doc-section">
+      <div class="section-head">
+        <span class="label">04 / Defense-in-Depth Security</span>
+        <h2 class="section-title">OWASP Production <strong>File Security Checklist</strong></h2>
+        <p>
+          No single validation technique stops malicious uploads. Track your implementation across all nine OWASP and cloud-upload defense layers—progress saves automatically across sessions.
+        </p>
+      </div>
+
+      <div class="layer">
+        <div class="hero-meta-row" style="margin-bottom: var(--space-md);">
+          <div>
+            <span class="label">Checklist Progress</span>
+            <div style="font-weight: 600; margin-top: var(--space-xs);" id="checklist-summary">0 of 9 controls verified</div>
+          </div>
+          <button type="button" class="btn btn-ghost" onclick="resetChecklist(this)">Reset Checklist</button>
+        </div>
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill" id="checklist-progress-bar"></div>
+        </div>
+
+        <div class="checklist-list" id="owasp-checklist" style="margin-top: var(--space-lg);"></div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: JAVA-FIRST PRODUCTION EXAMPLES -->
+    <section id="sec-5" class="doc-section">
+      <div class="section-head">
+        <span class="label">05 / Java Production Patterns</span>
+        <h2 class="section-title">Idiomatic <strong>AWS SDK v2 &amp; Spring-Style</strong> implementations</h2>
+        <p>
+          Reference patterns showing how to keep file bytes off JVM threads, orchestrate multipart transfers, and verify magic bytes with a 512-byte range read.
+        </p>
+      </div>
+
+      <div class="layer">
+        <div class="tab-bar" role="tablist" aria-label="Java code examples">
+          <button type="button" class="tab-btn is-active" role="tab" aria-selected="true" onclick="selectCodeTab('presign', this)">1. Presigned PUT + DB Record</button>
+          <button type="button" class="tab-btn" role="tab" aria-selected="false" onclick="selectCodeTab('multipart', this)">2. Multipart Orchestration</button>
+          <button type="button" class="tab-btn" role="tab" aria-selected="false" onclick="selectCodeTab('magic', this)">3. Streaming Magic-Byte Check</button>
+        </div>
+
+        <div class="grid-asymmetric" style="margin-top: var(--space-md);">
+          <div>
+            <div class="code-header">
+              <span class="label" id="code-filename">PresignedUploadService.java</span>
+              <button type="button" class="btn btn-ghost" style="min-height: 36px; padding: var(--space-xs) var(--space-md);" onclick="copyCodeSnippet(this)">Copy Snippet</button>
+            </div>
+            <pre class="code-shell"><code id="code-display"></code></pre>
+          </div>
+          <div>
+            <span class="label" style="margin-bottom: var(--space-sm);">Key Design Guardrails</span>
+            <div class="code-annotations" id="code-notes"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 6: FAILURE MODES, FLASHCARDS & QUIZ -->
+    <section id="sec-6" class="doc-section">
+      <div class="section-head">
+        <span class="label">06 / Operations &amp; Self-Check</span>
+        <h2 class="section-title">Production <strong>failure modes, flashcards &amp; scenario quiz</strong></h2>
+        <p>
+          Review real incident patterns from distributed file systems and direct-upload pipelines, drill core concepts, and test your architecture instincts.
+        </p>
+      </div>
+
+      <!-- 6A: Production Failure Modes -->
+      <div>
+        <span class="label" style="margin-bottom: var(--space-sm);">6A / Incident Playbook — Click to Inspect Root Cause &amp; Fix</span>
+        <div class="card-grid" id="failure-cards-grid"></div>
+      </div>
+
+      <!-- 6B & 6C: Flashcards + Scored Quiz -->
+      <div class="grid-2" style="margin-top: var(--space-md);">
+        <!-- 6B: Flashcards -->
+        <div class="flashcard-stage">
+          <div class="hero-meta-row" style="margin-bottom: 0;">
+            <div>
+              <span class="label">6B / Active Recall Flashcards</span>
+              <div class="muted" id="fc-counter">Card 1 of 8 · 0 marked known</div>
+            </div>
+            <div class="seg-group">
+              <button type="button" class="seg-btn is-active" id="fc-filter-all" onclick="setFlashcardFilter('all')">All</button>
+              <button type="button" class="seg-btn" id="fc-filter-review" onclick="setFlashcardFilter('review')">To Review</button>
+            </div>
+          </div>
+
+          <div class="flashcard-face" id="fc-card" tabindex="0" role="button" aria-label="Flip flashcard" onclick="flipFlashcard()" onkeydown="handleFlashcardKey(event)">
+            <span class="label" id="fc-side-label">Prompt — Click to Reveal Answer</span>
+            <div id="fc-text" style="font-size: 1.0625rem; font-weight: 500;"></div>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-sm);">
+            <div style="display: flex; gap: var(--space-xs);">
+              <button type="button" class="btn btn-ghost" onclick="stepFlashcard(-1)">Previous</button>
+              <button type="button" class="btn btn-ghost" onclick="stepFlashcard(1)">Next</button>
+            </div>
+            <button type="button" class="btn btn-primary" id="fc-known-btn" onclick="toggleFlashcardKnown()">Mark as Known</button>
+          </div>
+        </div>
+
+        <!-- 6C: Scenario Quiz -->
+        <div class="layer" style="display: grid; gap: var(--space-md); align-content: start;">
+          <div class="hero-meta-row" style="margin-bottom: 0;">
+            <div>
+              <span class="label">6C / Production Scenario Quiz</span>
+              <div class="muted" id="quiz-score-readout">Score: 0 / 6 answered</div>
+            </div>
+            <button type="button" class="btn btn-ghost" onclick="resetQuiz(this)">Reset Quiz</button>
+          </div>
+
+          <div id="quiz-container" style="display: grid; gap: var(--space-md);"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SOURCES FOOTER -->
+    <footer style="border-top: var(--rule); padding-top: var(--space-lg);">
+      <span class="label">Sources &amp; Grounding</span>
+      <p class="muted" style="margin-top: var(--space-xs); max-width: 90ch;">
+        Compiled and synthesized from the OWASP File Upload Cheat Sheet, Amazon S3 User Guide (Presigned URLs &amp; Multipart Upload), Amazon EFS User Guide, AWS Storage Blog (Hybrid-Cloud Architecture with AWS DataSync &amp; File Gateway), Linux Kernel Virtual File System (VFS) Documentation, Scality &amp; Visuality Systems Object/NAS/SMB Architectural Guides, Alibaba Cloud Storage Comparison, DEV Community S3 Quarantine &amp; Kubernetes S3 vs. NFS Guides, and IJIRSET Direct Cloud File Upload Security Study.
+      </p>
+    </footer>
+
+  </main>
+
+  <api-shim></api-shim>
+
+  <script>
+    // =========================================================================
+    // DATA DEFINITIONS (All strings use backtick template literals)
+    // =========================================================================
+
+    const VFS_LAYERS = {
+      syscall: {
+        tag: `Layer 1 / Userspace Boundary`,
+        title: `Userspace System Calls`,
+        body: `Applications invoke VFS system calls—open(2), stat(2), read(2), write(2), and chmod(2)—from a process context. The VFS acts as the kernel switch so userspace sees one unified POSIX API across ext4, XFS, NFS, or pseudo-filesystems.`,
+        ops: `<strong>Key Contract:</strong> Pathnames passed to open(2) or stat(2) are resolved component-by-component through the dentry cache before touching storage blocks.`
+      },
+      dcache: {
+        tag: `Layer 2 / Directory Entry Cache (dcache)`,
+        title: `In-Memory Pathname Resolution`,
+        body: `Dentries live in RAM only and are never saved to disc. They translate a pathname into a pointer to an inode via parent-to-child hashes. If a name does not exist, VFS inserts a negative dentry (NULL inode) to speed up repeated misses.`,
+        ops: `<strong>struct dentry_operations:</strong> d_revalidate, d_hash, d_compare, d_delete (returns 1 to drop immediately or 0 to cache in LRU), d_release.`
+      },
+      file: {
+        tag: `Layer 3 / Open File Object`,
+        title: `Process File Descriptor State`,
+        body: `Opening a file allocates a kernel struct file initialized with a dentry pointer and file_operations copied from the inode, then places it in the process file descriptor table. While open, it pins the dentry and inode in use.`,
+        ops: `<strong>Lifecycle:</strong> read(2)/write(2) look up struct file from the integer FD; closing drops the handle via dput() so LRU reclamation can proceed.`
+      },
+      inode: {
+        tag: `Layer 4 / Inode & Superblock Objects`,
+        title: `Filesystem Identity & Mounted Volume`,
+        body: `An inode represents a filesystem object (regular file, directory, FIFO, or symlink) storing permissions, timestamps, i_nlink count, and pointers to data blocks—separate from filename strings. A superblock represents the mounted filesystem instance.`,
+        ops: `<strong>Operations:</strong> inode_operations (create, lookup, link, unlink, mkdir, rename, atomic_open) &amp; super_operations (alloc_inode, write_inode, sync_fs, statfs).`
+      }
+    };
+
+    const NAS_TOPICS = {
+      mount: `<strong>AZ Affinity &amp; Access Points:</strong> Regional EFS places one mount target per Availability Zone (in one subnet). Mount from the same AZ for lower latency and cost. On-premises Linux clients (kernel 4.0+) reach mount targets over Direct Connect or VPN via TCP 2049 using the mount target IP. EFS Access Points enforce a dedicated root directory and user identity per app.`,
+      security: `<strong>Identity &amp; Transport Security:</strong> Classic NFS relies on UID/GID consistency between client and server and transmits plaintext by default unless wrapped with TLS (stunnel/EFS mount helper) or Kerberos. SMB 3.x integrates directly with Active Directory, Kerberos, ACLs, encryption, signing, and SMB over QUIC for WAN connectivity.`,
+      bottleneck: `<strong>Locks &amp; Small-File Overhead:</strong> NFS delivers close-to-open consistency and ReadWriteMany pod sharing (<code class="inline-code">csi-driver-nfs</code>), but throughput is bounded by the backing filer and a crashed pod holding a file lock can stall peers until lock expiry. Millions of tiny files stress metadata lookup paths.`
+    };
+
+    const MP_PHASES = {
+      1: {
+        tag: `Phase 1 / CreateMultipartUpload`,
+        title: `Initiate Upload &amp; Issue UploadId`,
+        desc: `The server or SDK calls CreateMultipartUpload for a single object key and receives an UploadId. In versioning-enabled buckets, if two concurrent multipart uploads target the same key, the upload initiated most recently (createdDate) becomes the current version upon completion.`
+      },
+      2: {
+        tag: `Phase 2 / Parallel UploadPart`,
+        title: `Independent Chunks (5 MB–5 GB) + ETags`,
+        desc: `The client uploads contiguous parts independently in any order across parallel connections, maximizing bandwidth. Each part returns an ETag and carries a checksum (CRC-64/NVME by default in updated AWS SDKs). If part 3 fails on a spotty network, only part 3 is retransmitted.`
+      },
+      3: {
+        tag: `Phase 3 / CompleteMultipartUpload or Abort`,
+        title: `Assemble Object &amp; Verify Full Checksum`,
+        desc: `Sending CompleteMultipartUpload with the ordered (PartNumber, ETag) list tells S3 to assemble the object and verify the composite CRC-64/NVME checksum. If the client cancels or times out, call AbortMultipartUpload so uncompleted parts do not linger indefinitely.`
+      }
+    };
+
+    const STATE_DETAILS = {
+      PENDING: {
+        title: `PENDING — URL Issued, Bytes Not Yet Verified`,
+        desc: `The API authenticated the caller, checked authorization, generated a UUID key under <code class="inline-code">quarantine/{userId}/{uuid}</code>, inserted the DB row as PENDING, and returned a 300-second presigned URL. Scheduled cleanup reaps stale PENDING rows that never complete.`
+      },
+      UPLOADED: {
+        title: `UPLOADED — Raw Bytes Landed in Quarantine`,
+        desc: `The client uploaded directly to the private quarantine bucket (either single PUT/POST or completed multipart). No public reader or downstream consumer can access this object yet.`
+      },
+      SCANNING: {
+        title: `SCANNING — Async Worker Inspecting Content`,
+        desc: `Triggered by an S3 storage event or client completion callback. A background worker checks object size, inspects the first 512 bytes for magic-byte signatures, runs ClamAV malware scanning, and strips/re-encodes images or runs CDR on PDF/DOCX.`
+      },
+      AVAILABLE: {
+        title: `AVAILABLE — Promoted to Approved Storage`,
+        desc: `All validation passed. The worker promotes the object out of quarantine into the approved private bucket, updates DB status to AVAILABLE with detected MIME and checksum, and serves static public assets via CDN or an ID-mapped download handler.`
+      },
+      QUARANTINED: {
+        title: `QUARANTINED — Validation or Malware Failure`,
+        desc: `Magic-byte mismatch, ClamAV detection, size bomb, or active script payload triggered rejection. The file remains isolated or deleted, an alert is logged for monitoring, and the DB row records QUARANTINED so it is never served.`
+      }
+    };
+
+    const OWASP_CHECKS = [
+      {
+        id: `chk_auth`,
+        title: `Enforce AuthN, AuthZ &amp; CSRF Protection`,
+        badge: `Access Control`,
+        detail: `Require registered/authenticated users, verify RBAC ownership permissions before issuing upload credentials, and protect upload endpoints against CSRF attacks.`
+      },
+      {
+        id: `chk_ext`,
+        title: `Validate Extensions via Strict Allow-List (Post-Decode)`,
+        badge: `Input Validation`,
+        detail: `Decode filenames first, then allow only business-critical extensions. Reject double extensions (.jpg.php), null bytes (.php%00.jpg), case tricks (.pHp), alternate interpreter suffixes (.phtml, .php5, .jspx, .aspx), NTFS colons (shell.php::$DATA), and Windows 8.3 short-name aliases.`
+      },
+      {
+        id: `chk_magic`,
+        title: `Inspect Magic-Byte Signatures (Never Trust Content-Type)`,
+        badge: `Type Integrity`,
+        detail: `Client-supplied Content-Type headers and extensions are trivially spoofed. Verify raw magic bytes (e.g., first 512 bytes) against the expected format.`
+      },
+      {
+        id: `chk_uuid`,
+        title: `Rename Files Server-Side with Generated UUIDs`,
+        badge: `Filename Safety`,
+        detail: `Store objects under server-generated UUID/GUID keys. If original filenames are kept for display, enforce max length, restrict characters, and block leading dots (.), sequential dots (..), hyphens (-), and path traversal.`
+      },
+      {
+        id: `chk_storage`,
+        title: `Store Outside Webroot / Private Quarantine Bucket + Lock Config`,
+        badge: `Storage Isolation`,
+        detail: `Use a separate storage host or private bucket outside the webroot. Disable per-directory server overrides (Apache AllowOverride None, locked IIS handler mappings) to block .htaccess or web.config execution, and enforce least-privilege filesystem permissions.`
+      },
+      {
+        id: `chk_av_cdr`,
+        title: `Run Antivirus (ClamAV), Image Re-Encoding &amp; CDR`,
+        badge: `Content Hygiene`,
+        detail: `Scan quarantined uploads with ClamAV/sandbox. Decode and re-encode images with metadata stripped (-strip) in an updated sandboxed processor; validate Office docs (e.g., Apache POI) and apply CDR to PDF/DOCX.`
+      },
+      {
+        id: `chk_zip`,
+        title: `Defend Against Zip Bombs, XML Bombs &amp; Zip Slip`,
+        badge: `Decompression Safety`,
+        detail: `Avoid ZIP uploads when possible. When extraction is required, enforce size limits AFTER decompression, bound entry counts, and canonicalize destination paths (safe ZipInputStream handling).`
+      },
+      {
+        id: `chk_iam`,
+        title: `Scope IAM Least-Privilege, Short-TTL Presigned URLs &amp; CORS`,
+        badge: `Cloud Guardrails`,
+        detail: `Never expose long-lived storage keys. Issue short-lived (e.g., 300s) presigned URLs scoped to a specific bucket, UUID key, and content-length-range, backed by strict bucket CORS and CloudWatch/EventBridge monitoring.`
+      },
+      {
+        id: `chk_headers`,
+        title: `Serve Downloads with Defensive Headers &amp; Origin Isolation`,
+        badge: `Download Safety`,
+        detail: `Map public downloads through an internal ID handler (someid -> file.ext) or isolated cookie-less domain with Content-Disposition: attachment and X-Content-Type-Options: nosniff to neutralize stored XSS from SVG/HTML.`
+      }
+    ];
+
+    const JAVA_SNIPPETS = {
+      presign: {
+        filename: `PresignedUploadService.java`,
+        code: `public UploadTicket createUploadTicket(String userId, String rawFilename, long sizeBytes) {
+    String ext = validateAllowedExtension(rawFilename); // strict allow-list after decode
+    if (sizeBytes < 1 || sizeBytes > 10_485_760L) {
+        throw new IllegalArgumentException("File exceeds 10 MB limit");
+    }
+
+    String fileId = UUID.randomUUID().toString();
+    String objectKey = "quarantine/" + userId + "/" + fileId + "." + ext;
+
+    // 1. Record PENDING state in relational DB before issuing URL
+    fileMetadataRepo.save(FileRecord.pending(fileId, userId, objectKey, sanitize(rawFilename), sizeBytes));
+
+    // 2. Scope PutObjectRequest to exact bucket, key, and content length
+    PutObjectRequest putReq = PutObjectRequest.builder()
+            .bucket(quarantineBucket)
+            .key(objectKey)
+            .contentLength(sizeBytes)
+            .build();
+
+    PutObjectPresignRequest presignReq = PutObjectPresignRequest.builder()
+            .signatureDuration(Duration.ofMinutes(5))
+            .putObjectRequest(putReq)
+            .build();
+
+    PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(presignReq);
+    return new UploadTicket(fileId, objectKey, presigned.url().toString(), 300);
+}`,
+        notes: [
+          { title: `UUID Quarantine Key`, body: `Generates a server-side UUID path under quarantine/{userId}/ so user input never controls the stored key or overwrites existing files.` },
+          { title: `DB-First PENDING Record`, body: `Persists ownership, sanitized display name, and PENDING status in the relational database before the client touches S3.` },
+          { title: `5-Minute Presigned Scope`, body: `Short-TTL signature constrains the client to one bucket, one key, and a bounded byte length without exposing AWS credentials.` }
+        ]
+      },
+      multipart: {
+        filename: `MultipartUploadOrchestrator.java`,
+        code: `public String initiateMultipart(String userId, String ext) {
+    String key = "quarantine/" + userId + "/" + UUID.randomUUID() + "." + ext;
+    CreateMultipartUploadResponse created = s3Client.createMultipartUpload(b -> b
+            .bucket(quarantineBucket)
+            .key(key)
+            .checksumAlgorithm(ChecksumAlgorithm.CRC64NVME));
+    return created.uploadId();
+}
+
+public URL presignPart(String key, String uploadId, int partNumber) {
+    UploadPartRequest partReq = UploadPartRequest.builder()
+            .bucket(quarantineBucket)
+            .key(key)
+            .uploadId(uploadId)
+            .partNumber(partNumber) // 1..10000; each part 5 MB - 5 GB (except last)
+            .build();
+
+    return s3Presigner.presignUploadPart(b -> b
+            .signatureDuration(Duration.ofMinutes(15))
+            .uploadPartRequest(partReq)).url();
+}
+
+public void completeOrAbort(String key, String uploadId, List<CompletedPart> parts, boolean ok) {
+    if (!ok) {
+        s3Client.abortMultipartUpload(b -> b.bucket(quarantineBucket).key(key).uploadId(uploadId));
+        return;
+    }
+    s3Client.completeMultipartUpload(b -> b
+            .bucket(quarantineBucket)
+            .key(key)
+            .uploadId(uploadId)
+            .multipartUpload(m -> m.parts(parts))); // ordered partNumber + ETag list
+}`,
+        notes: [
+          { title: `CRC64NVME Integrity`, body: `Enables AWS-recommended CRC-64/NVME checksum verification across parts and on the assembled object.` },
+          { title: `Presigned Part URLs`, body: `Clients upload 5 MB–5 GB chunks directly to S3 in parallel; failed parts retry independently via their partNumber.` },
+          { title: `Explicit Abort + Lifecycle Backup`, body: `Aborts explicitly on client failure, paired with an S3 Lifecycle rule to purge abandoned multipart uploads automatically.` }
+        ]
+      },
+      magic: {
+        filename: `StreamingMagicByteInspector.java`,
+        code: `public String detectSafeMimeFromS3Header(String bucket, String key) throws IOException {
+    // Fetch ONLY the first 512 bytes - never buffer a multi-GB object in JVM heap
+    GetObjectRequest rangeReq = GetObjectRequest.builder()
+            .bucket(bucket)
+            .key(key)
+            .range("bytes=0-511")
+            .build();
+
+    byte[] header;
+    try (ResponseInputStream<GetObjectResponse> stream = s3Client.getObject(rangeReq)) {
+        header = stream.readNBytes(512);
+    }
+
+    if (startsWith(header, new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A})) {
+        return "image/png";
+    }
+    if (startsWith(header, new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF})) {
+        return "image/jpeg";
+    }
+    if (startsWith(header, "%PDF-".getBytes(StandardCharsets.US_ASCII))) {
+        return "application/pdf";
+    }
+    throw new SecurityException("Magic-byte mismatch for quarantined object: " + key);
+}`,
+        notes: [
+          { title: `Constant 512-Byte Footprint`, body: `HTTP Range request bytes=0-511 bounds JVM memory allocation to 512 bytes regardless of whether the file is 10 KB or 5 GB.` },
+          { title: `Header Signature Verification`, body: `Inspects actual binary magic numbers (PNG, JPEG, PDF) instead of trusting client-provided Content-Type or filename suffixes.` },
+          { title: `Quarantine Rejection`, body: `Throws immediately on mismatch so the worker transitions the DB record to QUARANTINED and never promotes the file.` }
+        ]
+      }
+    };
+
+    const FAILURE_MODES = [
+      {
+        id: `fm_1`,
+        title: `Orphaned Multipart Ghost Costs`,
+        symptom: `Cloud storage bill grows steadily despite stable active object counts.`,
+        cause: `Initiated S3 multipart uploads have no automatic expiry. Crashed clients or closed browser tabs leave 5 MB–5 GB uploaded parts lingering indefinitely.`,
+        fix: `Call AbortMultipartUpload on client cancel/timeout AND attach an S3 Lifecycle rule (AbortIncompleteMultipartUpload after 1–7 days) to every upload bucket.`
+      },
+      {
+        id: `fm_2`,
+        title: `JVM OOM from Buffered Proxy Uploads`,
+        symptom: `API pods crash with OutOfMemoryError and thread starvation during traffic spikes (e.g., 2,000 concurrent video uploads).`,
+        cause: `Multipart uploads routed through the application server buffer bytes in heap and pin HTTP worker threads for the entire transfer duration.`,
+        fix: `Split control plane from data plane: issue 300s presigned PUT/POST URLs directly to S3 and inspect only the first 512 bytes via ranged reads in an async worker.`
+      },
+      {
+        id: `fm_3`,
+        title: `NAS &amp; FUSE Metadata Storms on Tiny Files`,
+        symptom: `CI builds or log appenders stall with extreme latency when pointed at S3 via s3fs-fuse or overtaxed filers.`,
+        cause: `Object storage turns every stat, rename, or partial append into an HTTP request or whole-object rewrite; FUSE layers lack true POSIX locking and atomic directory renames.`,
+        fix: `Keep builds, source trees, databases, and line-by-line logs on local NVMe/EBS or a dedicated NAS—never on FUSE-mounted object storage.`
+      },
+      {
+        id: `fm_4`,
+        title: `Stored XSS via Inline SVG / HTML Uploads`,
+        symptom: `Uploaded "profile image" executes attacker JavaScript in other users' browsers when viewed.`,
+        cause: `Server trusted Content-Type: image/png or allowed .svg/.html uploads and served them inline from the primary application domain.`,
+        fix: `Validate magic bytes, re-encode images stripping metadata, store outside webroot, and serve via isolated cookie-less domain with Content-Disposition: attachment and X-Content-Type-Options: nosniff.`
+      },
+      {
+        id: `fm_5`,
+        title: `DB-vs-OSS Dual-Write Drift`,
+        symptom: `Database lists files that return 404 in S3, or orphaned files sit in buckets with no owner record.`,
+        cause: `Client crashes after uploading to S3 before notifying API, or API writes DB row without a lifecycle state machine and reconciliation.`,
+        fix: `Insert DB row as PENDING first, trigger SCANNING/AVAILABLE from S3 storage events, and run a periodic reaper to clean stale PENDING records and unreferenced quarantine keys.`
+      }
+    ];
+
+    const FLASHCARDS = [
+      {
+        id: `fc_1`,
+        prompt: `Why does renaming a "folder" in S3 or OSS take much longer than renaming a directory on NAS or ext4?`,
+        answer: `Object storage has a flat bucket + key namespace with no real directories; folders are simulated prefixes. Renaming one requires copying and deleting every object beneath that prefix, whereas POSIX/NAS updates a directory entry pointer.`
+      },
+      {
+        id: `fc_2`,
+        prompt: `What lives in the Linux VFS dentry cache (dcache) vs. an inode?`,
+        answer: `Dentries live in RAM only and map pathnames to inodes (including negative dentries for missing files). Inodes hold object metadata (permissions, timestamps, i_nlink, block pointers) separately from filenames.`
+      },
+      {
+        id: `fc_3`,
+        prompt: `How does a File Gateway (AWS Storage Gateway) bridge on-premises SMB/NFS clients to Amazon S3?`,
+        answer: `It exposes SMB/NFS shares backed by up to 64 TB of local cache, acknowledges client writes immediately from cache, uploads objects asynchronously to S3 over TLS, and syncs reads via a "duration since last access" timer (e.g., 30 min) or RefreshCache API.`
+      },
+      {
+        id: `fc_4`,
+        prompt: `Why should Kubernetes pods avoid mounting S3 via s3fs-fuse for shared mutable workloads?`,
+        answer: `s3fs-fuse provides only partial POSIX semantics: partial writes rewrite whole objects, directory listings suffer HTTP latency, there are no hard links or atomic renames, and multiple clients get no POSIX file locking. Use csi-driver-nfs (ReadWriteMany) instead.`
+      },
+      {
+        id: `fc_5`,
+        prompt: `What happens in a versioned S3 bucket if two concurrent multipart uploads target the same key?`,
+        answer: `Completing a multipart upload creates a new version, and the current version is determined by whichever CreateMultipartUpload request started most recently (createdDate)—even if the earlier upload finishes last.`
+      },
+      {
+        id: `fc_6`,
+        prompt: `Which filename-validation bypass tricks does the OWASP File Upload Cheat Sheet warn against?`,
+        answer: `Double extensions (.jpg.php), null-byte injection (.php%00.jpg), case manipulation (.pHp), alternate interpreter extensions (.phtml, .php5, .jspx, .aspx), NTFS Alternate Data Streams (colon : like shell.php::$DATA), and Windows 8.3 short-name aliases.`
+      },
+      {
+        id: `fc_7`,
+        prompt: `Why should an upload worker read bytes=0-511 instead of streaming the entire object into memory to check file type?`,
+        answer: `Reading only the first 512 bytes bounds memory footprint per worker and lets you verify binary magic-byte signatures against the expected file type without risking JVM heap exhaustion.`
+      },
+      {
+        id: `fc_8`,
+        prompt: `What three HTTP/delivery controls neutralize stored XSS in user-uploaded files?`,
+        answer: `Serve files via an ID-mapped handler on an isolated cookie-less domain (or outside webroot) with Content-Disposition: attachment and X-Content-Type-Options: nosniff.`
+      }
+    ];
+
+    const QUIZ_QUESTIONS = [
+      {
+        id: `q1`,
+        question: `A Kubernetes ML platform needs 40 pods across multiple nodes to read and write shared Jupyter notebooks and scratch checkpoints concurrently with POSIX locking. Which storage choice fits best?`,
+        options: [
+          `Mount an S3 bucket into every pod using s3fs-fuse`,
+          `Use a single EBS volume mounted ReadWriteOnce across all 40 pods`,
+          `Use NFS / Amazon EFS via csi-driver-nfs (ReadWriteMany)`,
+          `Store notebooks inside a relational database BLOB column without caching`
+        ],
+        correct: 2,
+        explanation: `NFS/EFS via csi-driver-nfs provides ReadWriteMany multi-node POSIX access. EBS is ReadWriteOnce (single node), and s3fs-fuse lacks multi-client POSIX locking and atomic renames.`
+      },
+      {
+        id: `q2`,
+        question: `An engineering team wants to point a CI/CD build runner (thousands of small source files, frequent compiles, git renames) at an S3 bucket via a file gateway. What is the primary failure mode?`,
+        options: [
+          `S3 buckets cannot store files smaller than 5 MB`,
+          `Heavy small-file metadata activity and directory renames trigger high per-object HTTP latency and copy+delete overhead`,
+          `File Gateway forces every file to be encrypted with Kerberos`,
+          `S3 Versioning automatically deletes files modified more than once per minute`
+        ],
+        correct: 1,
+        explanation: `Every object operation is an HTTP request and directories are simulated key prefixes. Heavy small-file metadata workloads (builds, source code trees) belong on NAS or local block storage.`
+      },
+      {
+        id: `q3`,
+        question: `During peak load, 2,500 users upload 200 MB videos simultaneously through a Spring Boot API endpoint, causing JVM OutOfMemoryErrors. What is the standard production fix?`,
+        options: [
+          `Increase JVM heap to 64 GB and keep buffering multipart uploads in Tomcat`,
+          `Issue short-lived presigned URLs (or presigned multipart URLs) so clients upload directly to a private S3 quarantine bucket`,
+          `Switch from S3 to SMB over QUIC on the API server`,
+          `Disable TLS on the upload endpoint to save CPU cycles`
+        ],
+        correct: 1,
+        explanation: `Moving the data plane off the API server with presigned URLs lets clients transfer bytes directly to S3 while the API handles only auth, metadata, and short-TTL URL signing.`
+      },
+      {
+        id: `q4`,
+        question: `Your service validates uploads solely by checking if request.getContentType() equals "image/png" and storing files under /var/www/html/uploads/<originalName>. Which pair of vulnerabilities does this leave wide open?`,
+        options: [
+          `Multipart ghost costs and EFS mount-target exhaustion`,
+          `Trivially spoofed MIME headers plus path traversal / active content execution inside the webroot`,
+          `CRC-64/NVME checksum collision and dcache overflow`,
+          `Kerberos ticket expiration and iSCSI timeout`
+        ],
+        correct: 1,
+        explanation: `OWASP stresses never trusting Content-Type headers or user filenames, and never storing uploads inside the webroot. Rename to a server UUID, inspect magic bytes, store privately, and scan in quarantine.`
+      },
+      {
+        id: `q5`,
+        question: `Users upload 1.5 GB archives via S3 Multipart Upload, and roughly 8% of mobile clients drop offline mid-upload without sending AbortMultipartUpload. What happens unless configured otherwise?`,
+        options: [
+          `S3 automatically deletes incomplete multipart parts after 24 hours`,
+          `Incomplete parts stay billed indefinitely until an S3 Lifecycle rule aborts incomplete multipart uploads`,
+          `The AWS SDK automatically rolls back all parts on the server`,
+          `Parts merge into a corrupted 0-byte object`
+        ],
+        correct: 1,
+        explanation: `Initiated multipart uploads have no automatic expiry. Production buckets must configure an S3 Lifecycle rule (AbortIncompleteMultipartUpload) to purge orphaned parts.`
+      },
+      {
+        id: `q6`,
+        question: `On Windows/NTFS, an upload filter checks filename.endsWith(".jpg") before writing to disk. How can an attacker still create an executable .php or .asp file according to OWASP?`,
+        options: [
+          `By sending an NTFS Alternate Data Stream filename like shell.php::$DATA or shell.asp:.jpg`,
+          `By increasing the TCP MTU size`,
+          `By enabling S3 Object Lock WORM mode`,
+          `By requesting bytes=0-511 via HTTP Range`
+        ],
+        correct: 0,
+        explanation: `On Windows NTFS, a colon (:) acts as an Alternate Data Stream separator so the file created on disk carries the extension before the colon. Reject filenames containing colons and generate UUID filenames server-side.`
+      }
+    ];
+
+    // =========================================================================
+    // PERSISTED STATE
+    // =========================================================================
+    let appState = {
+      checkedIds: [],
+      knownFlashcards: [],
+      fcIndex: 0,
+      fcFilter: `all`,
+      quizAnswers: {},
+      codeTab: `presign`
+    };
+    let fcFlipped = false;
+    let mpParts = [
+      { num: 1, size: `128 MB`, status: `ok`, etag: `"9b2cf535"` },
+      { num: 2, size: `128 MB`, status: `ok`, etag: `"a41d8012"` },
+      { num: 3, size: `128 MB`, status: `ok`, etag: `"c77e19b0"` },
+      { num: 4, size: `64 MB`, status: `ok`, etag: `"e03a55f1"` }
+    ];
+
+    async function persistState() {
+      if (window.notebookAppApi) {
+        try {
+          await window.notebookAppApi.setAppState(appState);
+        } catch (err) {
+          // Safe fallback if shim rejects
+        }
+      }
+    }
+
+    // =========================================================================
+    // SECTION 1: MATRIX FILTER & DECISION HELPER
+    // =========================================================================
+    function filterMatrix(cat, btn) {
+      const group = btn ? btn.parentElement : null;
+      if (group) {
+        group.querySelectorAll(`.seg-btn`).forEach(function (el) { el.classList.remove(`is-active`); });
+        btn.classList.add(`is-active`);
+      }
+      const rows = document.querySelectorAll(`#storage-matrix tbody tr`);
+      rows.forEach(function (row) {
+        if (cat === `all` || row.dataset.cat === cat) {
+          row.style.display = ``;
+        } else {
+          row.style.display = `none`;
+        }
+      });
+    }
+
+    function updateDecision() {
+      const mut = document.getElementById(`dec-mutability`);
+      const sha = document.getElementById(`dec-sharing`);
+      const lat = document.getElementById(`dec-latency`);
+      const titleEl = document.getElementById(`dec-title`);
+      const sumEl = document.getElementById(`dec-summary`);
+      const k8sEl = document.getElementById(`dec-k8s-note`);
+      if (!mut || !sha || !lat || !titleEl || !sumEl || !k8sEl) return;
+
+      const m = mut.value;
+      const s = sha.value;
+      const l = lat.value;
+
+      if (m === `inplace` && s === `single` && l === `micro`) {
+        titleEl.textContent = `Local POSIX / Block Storage (ext4 or XFS on EBS)`;
+        sumEl.textContent = `Best for OLTP/NoSQL databases and single-instance I/O-intensive workloads needing microsecond random read/write, in-place byte updates, and full POSIX semantics.`;
+        k8sEl.innerHTML = `<strong>Kubernetes Fit:</strong> Bind a <code class="inline-code">ReadWriteOnce</code> block PV (EBS / local NVMe). Do not put databases over NFS or S3 FUSE.`;
+      } else if (m === `worm` || s === `internet` || (m !== `inplace` && l === `http`)) {
+        titleEl.textContent = `Object Storage / OSS (Amazon S3 or S3-Compatible)`;
+        sumEl.textContent = `Best for immutable user uploads, media, backups, artifacts, and data lakes. Delivers 11 9s durability, flat bucket + key scale-out, and zero app-server proxying via presigned URLs.`;
+        k8sEl.innerHTML = `<strong>Kubernetes Fit:</strong> Access via AWS SDK / S3 REST API with credentials in Secrets (or IAM roles). Avoid mounting via <code class="inline-code">s3fs-fuse</code> for mutable workloads.`;
+      } else {
+        titleEl.textContent = `Shared NAS (NFSv4 / Amazon EFS / SMB 3.x)`;
+        sumEl.textContent = `Best when multiple hosts or pods need a shared directory tree, concurrent random reads/writes, mandatory locking (SMB) or close-to-open consistency (NFS), and instant directory renames.`;
+        k8sEl.innerHTML = `<strong>Kubernetes Fit:</strong> Deploy <code class="inline-code">csi-driver-nfs</code> (<code class="inline-code">nfs.csi.k8s.io</code>) with <code class="inline-code">ReadWriteMany</code> PVCs (e.g., Jupyter homes, shared model checkpoints, CMS uploads).`;
+      }
+    }
+
+    // =========================================================================
+    // SECTION 2: VFS, LINKS, NAS & OSS EXPLORERS
+    // =========================================================================
+    function selectVfsLayer(layerKey, btn) {
+      const data = VFS_LAYERS[layerKey];
+      if (!data) return;
+      document.querySelectorAll(`.vfs-layer-btn`).forEach(function (el) { el.classList.remove(`is-active`); });
+      if (btn) btn.classList.add(`is-active`);
+      const tag = document.getElementById(`vfs-detail-tag`);
+      const title = document.getElementById(`vfs-detail-title`);
+      const body = document.getElementById(`vfs-detail-body`);
+      const ops = document.getElementById(`vfs-detail-ops`);
+      if (tag) tag.textContent = data.tag;
+      if (title) title.textContent = data.title;
+      if (body) body.textContent = data.body;
+      if (ops) ops.innerHTML = data.ops;
+    }
+
+    function setLinkView(type, btn) {
+      if (btn && btn.parentElement) {
+        btn.parentElement.querySelectorAll(`.seg-btn`).forEach(function (el) { el.classList.remove(`is-active`); });
+        btn.classList.add(`is-active`);
+      }
+      const svgBox = document.getElementById(`link-svg-box`);
+      const descBox = document.getElementById(`link-desc-box`);
+      if (!svgBox || !descBox) return;
+
+      if (type === `hard`) {
+        svgBox.innerHTML = `
+          <svg viewBox="0 0 460 155" role="img" aria-label="Hard link diagram showing two dentries pointing to one inode">
+            <rect x="10" y="16" width="130" height="44" fill="var(--primary-container)" stroke="var(--primary)" />
+            <text x="20" y="36" font-family="IBM Plex Mono" font-size="11" fill="var(--on-primary-container)">dentry: a.txt</text>
+            <text x="20" y="51" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">/dir1/a.txt</text>
+
+            <rect x="10" y="88" width="130" height="44" fill="var(--primary-container)" stroke="var(--primary)" />
+            <text x="20" y="108" font-family="IBM Plex Mono" font-size="11" fill="var(--on-primary-container)">dentry: b.txt</text>
+            <text x="20" y="123" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">/dir2/b.txt</text>
+
+            <line x1="140" y1="38" x2="205" y2="75" stroke="var(--primary)" stroke-width="2" />
+            <line x1="140" y1="110" x2="205" y2="82" stroke="var(--primary)" stroke-width="2" />
+
+            <rect x="205" y="42" width="120" height="72" fill="var(--surface-container)" stroke="var(--on-surface)" />
+            <text x="215" y="64" font-family="IBM Plex Mono" font-size="11" font-weight="600" fill="var(--on-surface)">Inode #4092</text>
+            <text x="215" y="82" font-family="IBM Plex Mono" font-size="10" fill="var(--tertiary)">i_nlink = 2</text>
+            <text x="215" y="98" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">uid, mode, ptrs</text>
+
+            <line x1="325" y1="78" x2="365" y2="78" stroke="var(--outline)" stroke-width="2" />
+            <rect x="365" y="46" width="85" height="64" fill="var(--surface-container-high)" stroke="var(--outline)" />
+            <text x="375" y="74" font-family="IBM Plex Mono" font-size="11" fill="var(--on-surface)">Data</text>
+            <text x="375" y="90" font-family="IBM Plex Mono" font-size="11" fill="var(--on-surface)">Blocks</text>
+          </svg>`;
+        descBox.innerHTML = `
+          <div class="strip strip--positive"><strong>Shared Inode Identity:</strong> Multiple dentries point directly to the same inode (#4092), incrementing <code class="inline-code">i_nlink</code>. Deleting <code class="inline-code">a.txt</code> drops <code class="inline-code">i_nlink</code> to 1; data blocks persist until <code class="inline-code">i_nlink == 0</code> and all open FDs close.</div>
+          <div class="strip"><strong>Cloud Caveat:</strong> Object stores (S3/OSS) and <code class="inline-code">s3fs-fuse</code> do NOT support hard links because they have no inode table.</div>`;
+      } else {
+        svgBox.innerHTML = `
+          <svg viewBox="0 0 460 155" role="img" aria-label="Symbolic link diagram showing symlink inode pointing to target path string">
+            <rect x="10" y="54" width="110" height="48" fill="var(--primary-container)" stroke="var(--primary)" />
+            <text x="18" y="75" font-family="IBM Plex Mono" font-size="11" fill="var(--on-primary-container)">dentry: link</text>
+            <text x="18" y="91" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">symlink</text>
+
+            <line x1="120" y1="78" x2="155" y2="78" stroke="var(--primary)" stroke-width="2" />
+
+            <rect x="155" y="44" width="130" height="68" fill="var(--surface-container)" stroke="var(--on-surface)" />
+            <text x="165" y="64" font-family="IBM Plex Mono" font-size="11" font-weight="600" fill="var(--on-surface)">Inode #8810</text>
+            <text x="165" y="81" font-family="IBM Plex Mono" font-size="10" fill="var(--data-2)">type: S_IFLNK</text>
+            <text x="165" y="98" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">"/dir1/a.txt"</text>
+
+            <line x1="285" y1="78" x2="335" y2="78" stroke="var(--data-2)" stroke-width="2" stroke-dasharray="4 3" />
+
+            <rect x="335" y="50" width="115" height="56" fill="var(--surface-container-high)" stroke="var(--outline)" />
+            <text x="345" y="74" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface)">Target Path</text>
+            <text x="345" y="91" font-family="IBM Plex Mono" font-size="11" font-weight="600" fill="var(--on-surface)">/dir1/a.txt</text>
+          </svg>`;
+        descBox.innerHTML = `
+          <div class="strip"><strong>Path Indirection:</strong> A symlink gets its own distinct inode storing the text string of the target path, resolved via <code class="inline-code">get_link()</code> / <code class="inline-code">readlink()</code>.</div>
+          <div class="strip strip--warning"><strong>Dangling Risk:</strong> If <code class="inline-code">/dir1/a.txt</code> is deleted or moved, the symlink breaks (dangling link). Symlinks can span across mounted filesystems, unlike hard links.</div>`;
+      }
+    }
+
+    function selectNasTopic(key, btn) {
+      if (btn && btn.parentElement) {
+        btn.parentElement.querySelectorAll(`.seg-btn`).forEach(function (el) { el.classList.remove(`is-active`); });
+        btn.classList.add(`is-active`);
+      }
+      const el = document.getElementById(`nas-topic-detail`);
+      if (el && NAS_TOPICS[key]) el.innerHTML = NAS_TOPICS[key];
+    }
+
+    function setOssView(view, btn) {
+      if (btn && btn.parentElement) {
+        btn.parentElement.querySelectorAll(`.seg-btn`).forEach(function (el) { el.classList.remove(`is-active`); });
+        btn.classList.add(`is-active`);
+      }
+      const box = document.getElementById(`oss-namespace-box`);
+      if (!box) return;
+      if (view === `flat`) {
+        box.innerHTML = `
+          <span class="label">Actual Storage Layout (Bucket + Flat Object Keys)</span>
+          <table class="carbon-table" style="margin-top: var(--space-sm);">
+            <thead><tr><th>Bucket</th><th>Full Object Key</th><th>Storage Role</th></tr></thead>
+            <tbody>
+              <tr><td class="mono-cell">prod-uploads</td><td class="mono-cell">quarantine/u481/7f9c2a1e.pdf</td><td>Unverified upload</td></tr>
+              <tr><td class="mono-cell">prod-uploads</td><td class="mono-cell">approved/2026/11/a90d31.png</td><td>Verified asset</td></tr>
+              <tr><td class="mono-cell">prod-uploads</td><td class="mono-cell">/.resource/manifest.json</td><td>Slash is part of key</td></tr>
+            </tbody>
+          </table>`;
+      } else {
+        box.innerHTML = `
+          <span class="label">Console UI Simulation (Key Delimiter "/" Grouping)</span>
+          <div style="font-family: IBM Plex Mono; font-size: 0.85rem; margin-top: var(--space-sm); line-height: 1.7;">
+            <div>prod-uploads/</div>
+            <div style="padding-left: var(--space-md);">├─ quarantine/ &rarr; u481/ &rarr; 7f9c2a1e.pdf <span class="muted">(virtual prefix)</span></div>
+            <div style="padding-left: var(--space-md);">├─ approved/ &rarr; 2026/ &rarr; 11/ &rarr; a90d31.png <span class="muted">(virtual prefix)</span></div>
+            <div style="padding-left: var(--space-md);">└─ .resource/ &rarr; manifest.json <span class="muted">(no real folder inode)</span></div>
+          </div>`;
+      }
+    }
+
+    // =========================================================================
+    // SECTION 3: BEFORE/AFTER ARCH, MULTIPART, STATE MACHINE
+    // =========================================================================
+    function setArchMode(mode, btn) {
+      if (btn && btn.parentElement) {
+        btn.parentElement.querySelectorAll(`.seg-btn`).forEach(function (el) { el.classList.remove(`is-active`); });
+        btn.classList.add(`is-active`);
+      }
+      const svgBox = document.getElementById(`arch-svg-box`);
+      const detailBox = document.getElementById(`arch-detail-box`);
+      if (!svgBox || !detailBox) return;
+
+      if (mode === `before`) {
+        svgBox.innerHTML = `
+          <svg viewBox="0 0 560 220" role="img" aria-label="Anti-pattern architecture routing all uploads through application server">
+            <rect x="14" y="70" width="120" height="72" fill="var(--surface-container)" stroke="var(--outline)" />
+            <text x="26" y="96" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--on-surface)">2,000+ Clients</text>
+            <text x="26" y="116" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">Multi-MB / GB</text>
+            <text x="26" y="130" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">concurrent POSTs</text>
+
+            <line x1="134" y1="106" x2="200" y2="106" stroke="var(--error)" stroke-width="3" />
+            <text x="142" y="94" font-family="IBM Plex Mono" font-size="10" fill="var(--error)">All Bytes</text>
+
+            <rect x="200" y="54" width="165" height="104" fill="var(--error-container)" stroke="var(--error)" stroke-width="2" />
+            <text x="214" y="80" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--error)">API Server (Bottleneck)</text>
+            <text x="214" y="102" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface)">• Buffers bytes in RAM</text>
+            <text x="214" y="118" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface)">• Thread pool saturated</text>
+            <text x="214" y="134" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface)">• Double egress/ingress</text>
+
+            <line x1="365" y1="106" x2="430" y2="106" stroke="var(--error)" stroke-width="3" />
+            <rect x="430" y="70" width="115" height="72" fill="var(--surface-container)" stroke="var(--outline)" />
+            <text x="444" y="100" font-family="IBM Plex Sans" font-size="13" font-weight="600" fill="var(--on-surface)">S3 / OSS</text>
+            <text x="444" y="118" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">Bucket</text>
+          </svg>`;
+        detailBox.innerHTML = `
+          <span class="label" style="color: var(--error);">Before — Anti-Pattern</span>
+          <h3 class="sub-title" style="margin-top: var(--space-xs);">App Server as Data Middleman</h3>
+          <ul class="ruled-list">
+            <li><strong>RAM &amp; Thread Exhaustion:</strong> Every active upload pins a server connection and buffers file bytes in memory, crashing the JVM at 2,000+ concurrent uploads.</li>
+            <li><strong>Wasted Bandwidth:</strong> Bytes traverse the network twice—Client &rarr; API Server &rarr; Object Store.</li>
+          </ul>`;
+      } else {
+        svgBox.innerHTML = `
+          <svg viewBox="0 0 560 245" role="img" aria-label="Production architecture splitting API control plane from direct S3 data plane">
+            <rect x="12" y="18" width="115" height="58" fill="var(--surface-container)" stroke="var(--outline)" />
+            <text x="22" y="42" font-family="IBM Plex Sans" font-size="12" font-weight="600" fill="var(--on-surface)">Client Browser</text>
+            <text x="22" y="59" font-family="IBM Plex Mono" font-size="10" fill="var(--on-surface-variant)">Auth Session</text>
+
+            <line x1="127" y1="47" x2="195" y2="47" stroke="var(--primary)" stroke-width="2" />
+            <text x="135" y="37" font-family="IBM Plex Mono" font-size="9" fill="var(--primary)">1. Request URL</text>
+
+            <rect x="195" y="14" width="175" height="66" fill="var(--primary-container)" stroke="var(--primary)" />
+            <text x="206" y="36" font-family="IBM Plex Sans" font-size="12" font-weight="600" fill="var(--on-primary-container)">API Control Plane</text>
+            <text x="206" y="53" font-family="IBM Plex Mono" font-size="9" fill="var(--on-primary-container)">AuthZ + DB PENDING</text>
+            <text x="206" y="67" font-family="IBM Plex Mono" font-size="9" fill="var(--on-primary-container)">Sign 300s Presigned URL</text>
+
+            <line x1="70" y1="76" x2="70" y2="148" stroke="var(--tertiary)" stroke-width="2.5" />
+            <line x1="70" y1="148" x2="195" y2="148" stroke="var(--tertiary)" stroke-width="2.5" />
+            <text x="78" y="138" font-family="IBM Plex Mono" font-size="9" fill="var(--tertiary)">2. Direct PUT/POST Bytes</text>
+
+            <rect x="195" y="114" width="175" height="66" fill="var(--warning-container)" stroke="var(--warning)" />
+            <text x="206" y="136" font-family="IBM Plex Sans" font-size="12" font-weight="600" fill="var(--on-surface)">Private S3 Quarantine</text>
+            <text x="206" y="153" font-family="IBM Plex Mono" font-size="9" fill="var(--on-surface-variant)">quarantine/{uid}/{uuid}</text>
+            <text x="206" y="167" font-family="IBM Plex Mono" font-size="9" fill="var(--on-surface-variant)">No public read access</text>
+
+            <line x1="370" y1="148" x2="420" y2="148" stroke="var(--on-surface)" stroke-width="1.5" />
+            <rect x="420" y="114" width="128" height="66" fill="var(--surface-container)" stroke="var(--outline)" />
+            <text x="430" y="135" font-family="IBM Plex Sans" font-size="12" font-weight="600" fill="var(--on-surface)">Async Worker</text>
+            <text x="430" y="152" font-family="IBM Plex Mono" font-size="9" fill="var(--on-surface-variant)">512B Magic + ClamAV</text>
+            <text x="430" y="166" font-family="IBM Plex Mono" font-size="9" fill="var(--tertiary)">&rarr; Approved Bucket</text>
+
+            <rect x="195" y="196" width="353" height="36" fill="var(--tertiary-container)" stroke="var(--tertiary)" />
+            <text x="208" y="218" font-family="IBM Plex Mono" font-size="10" fill="var(--tertiary)">DB Status: AVAILABLE · Served via CDN / Cookie-less Handler</text>
+          </svg>`;
+        detailBox.innerHTML = `
+          <span class="label" style="color: var(--tertiary);">After — Standard Production Pattern</span>
+          <h3 class="sub-title" style="margin-top: var(--space-xs);">Control Plane / Data Plane Split</h3>
+          <ul class="ruled-list">
+            <li><strong>Control Plane (API):</strong> Authenticates user, validates extension/size bounds, writes DB <code class="inline-code">PENDING</code> row, and signs a 300s presigned PUT/POST URL.</li>
+            <li><strong>Data Plane (Direct to S3):</strong> Client streams bytes straight into a private quarantine bucket; storage events trigger an async worker (512B magic-byte check + ClamAV) before promotion.</li>
+          </ul>`;
+      }
+    }
+
+    function renderMultipartParts() {
+      const grid = document.getElementById(`mp-parts-grid`);
+      const readout = document.getElementById(`mp-status-readout`);
+      if (!grid || !readout) return;
+
+      let okCount = 0;
+      grid.innerHTML = mpParts.map(function (p) {
+        if (p.status === `ok`) okCount++;
+        const cls = p.status === `ok` ? `part-tile--ok` : `part-tile--err`;
+        const statusText = p.status === `ok` ? `ETag ${p.etag}` : `FAILED — Retry`;
+        return `<div class="part-tile ${cls}">
+          <div><strong>Part #${p.num}</strong></div>
+          <div class="muted">${p.size}</div>
+          <div style="margin-top: var(--space-xs);">${statusText}</div>
+        </div>`;
+      }).join(``);
+
+      readout.textContent = okCount === mpParts.length
+        ? `${okCount}/4 parts verified · Ready for CompleteMultipartUpload`
+        : `${okCount}/4 parts verified · Part 3 interrupted (parts 1, 2, 4 intact)`;
+    }
+
+    function selectMultipartPhase(phaseNum, btn) {
+      if (btn && btn.parentElement) {
+        btn.parentElement.querySelectorAll(`.seg-btn`).forEach(function (el) { el.classList.remove(`is-active`); });
+        btn.classList.add(`is-active`);
+      }
+      const p = MP_PHASES[phaseNum];
+      if (!p) return;
+      const tag = document.getElementById(`mp-phase-tag`);
+      const title = document.getElementById(`mp-phase-title`);
+      const desc = document.getElementById(`mp-phase-desc`);
+      if (tag) tag.textContent = p.tag;
+      if (title) title.textContent = p.title;
+      if (desc) desc.innerHTML = p.desc;
+    }
+
+    function simulatePartFailure() {
+      mpParts[2].status = `err`;
+      renderMultipartParts();
+    }
+
+    function retryFailedPart() {
+      mpParts[2].status = `ok`;
+      renderMultipartParts();
+    }
+
+    function selectLifecycleState(stateKey, btn) {
+      if (btn && btn.parentElement) {
+        btn.parentElement.querySelectorAll(`.state-node`).forEach(function (el) { el.classList.remove(`is-active`); });
+        btn.classList.add(`is-active`);
+      }
+      const info = STATE_DETAILS[stateKey];
+      const panel = document.getElementById(`state-detail-panel`);
+      const cell = document.getElementById(`schema-status-cell`);
+      if (panel && info) {
+        panel.innerHTML = `
+          <span class="label">State Transition Detail</span>
+          <h3 class="sub-title" style="margin-top: var(--space-xs);">${info.title}</h3>
+          <p style="margin-bottom: 0;">${info.desc}</p>`;
+      }
+      if (cell) cell.textContent = stateKey;
+    }
+
+    // =========================================================================
+    // SECTION 4: OWASP CHECKLIST
+    // =========================================================================
+    function renderChecklist() {
+      const container = document.getElementById(`owasp-checklist`);
+      const summary = document.getElementById(`checklist-summary`);
+      const bar = document.getElementById(`checklist-progress-bar`);
+      if (!container || !summary || !bar) return;
+
+      const checkedSet = new Set(appState.checkedIds);
+      container.innerHTML = OWASP_CHECKS.map(function (item) {
+        const isChecked = checkedSet.has(item.id);
+        return `<div class="check-item ${isChecked ? `is-checked` : ``}">
+          <button type="button" class="check-box-btn" aria-pressed="${isChecked}" aria-label="Toggle ${item.badge}" onclick="toggleCheck('${item.id}')">
+            ${isChecked ? `<i data-lucide="check" width="18" height="18"></i>` : ``}
+          </button>
+          <div>
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xs);">
+              <strong>${item.title}</strong>
+              <span class="tag ${isChecked ? `tag--positive` : `tag--neutral`}">${item.badge}</span>
+            </div>
+            <div class="muted">${item.detail}</div>
+          </div>
+        </div>`;
+      }).join(``);
+
+      const count = appState.checkedIds.length;
+      const total = OWASP_CHECKS.length;
+      summary.textContent = `${count} of ${total} controls verified`;
+      bar.style.width = `${Math.round((count / total) * 100)}%`;
+
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function toggleCheck(id) {
+      const idx = appState.checkedIds.indexOf(id);
+      if (idx === -1) {
+        appState.checkedIds.push(id);
+      } else {
+        appState.checkedIds.splice(idx, 1);
+      }
+      renderChecklist();
+      persistState();
+    }
+
+    function resetChecklist(btn) {
+      if (btn && btn.dataset.armed !== `true`) {
+        btn.dataset.armed = `true`;
+        btn.textContent = `Click again to reset`;
+        return;
+      }
+      if (btn) {
+        btn.dataset.armed = `false`;
+        btn.textContent = `Reset Checklist`;
+      }
+      appState.checkedIds = [];
+      renderChecklist();
+      persistState();
+    }
+
+    // =========================================================================
+    // SECTION 5: JAVA CODE EXAMPLES
+    // =========================================================================
+    function selectCodeTab(tabKey, btn) {
+      appState.codeTab = tabKey;
+      if (btn && btn.parentElement) {
+        btn.parentElement.querySelectorAll(`.tab-btn`).forEach(function (el) {
+          el.classList.remove(`is-active`);
+          el.setAttribute(`aria-selected`, `false`);
+        });
+        btn.classList.add(`is-active`);
+        btn.setAttribute(`aria-selected`, `true`);
+      }
+      renderCodeTab();
+      persistState();
+    }
+
+    function renderCodeTab() {
+      const item = JAVA_SNIPPETS[appState.codeTab] || JAVA_SNIPPETS.presign;
+      const fname = document.getElementById(`code-filename`);
+      const codeEl = document.getElementById(`code-display`);
+      const notesEl = document.getElementById(`code-notes`);
+      if (fname) fname.textContent = item.filename;
+      if (codeEl) codeEl.textContent = item.code;
+      if (notesEl) {
+        notesEl.innerHTML = item.notes.map(function (n) {
+          return `<div class="annotation-row">
+            <strong>${n.title}</strong>
+            <div class="muted" style="margin-top: var(--space-xs);">${n.body}</div>
+          </div>`;
+        }).join(``);
+      }
+    }
+
+    function copyCodeSnippet(btn) {
+      const codeEl = document.getElementById(`code-display`);
+      if (!codeEl) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(codeEl.textContent || ``).then(function () {
+          if (btn) {
+            btn.textContent = `Copied`;
+            setTimeout(function () { btn.textContent = `Copy Snippet`; }, 1500);
+          }
+        });
+      }
+    }
+
+    // =========================================================================
+    // SECTION 6A: FAILURE MODES
+    // =========================================================================
+    function renderFailureCards() {
+      const grid = document.getElementById(`failure-cards-grid`);
+      if (!grid) return;
+      grid.innerHTML = FAILURE_MODES.map(function (fm) {
+        return `<article class="failure-card">
+          <span class="label" style="color: var(--error);">Failure Mode</span>
+          <h3 class="sub-title" style="margin: 0;">${fm.title}</h3>
+          <div class="muted"><strong>Symptom:</strong> ${fm.symptom}</div>
+          <button type="button" class="failure-toggle" aria-expanded="false" onclick="toggleFailureDetail('${fm.id}', this)">Show Root Cause &amp; Fix</button>
+          <div id="${fm.id}-detail" style="display: none; border-top: var(--rule); padding-top: var(--space-sm);">
+            <div style="margin-bottom: var(--space-xs);"><strong>Root Cause:</strong> ${fm.cause}</div>
+            <div class="strip strip--positive"><strong>Production Fix:</strong> ${fm.fix}</div>
+          </div>
+        </article>`;
+      }).join(``);
+    }
+
+    function toggleFailureDetail(id, btn) {
+      const detail = document.getElementById(`${id}-detail`);
+      if (!detail || !btn) return;
+      const open = detail.style.display !== `none`;
+      detail.style.display = open ? `none` : `block`;
+      btn.setAttribute(`aria-expanded`, String(!open));
+      btn.textContent = open ? `Show Root Cause & Fix` : `Hide Details`;
+    }
+
+    // =========================================================================
+    // SECTION 6B: FLASHCARDS
+    // =========================================================================
+    function getFilteredFlashcards() {
+      if (appState.fcFilter === `review`) {
+        const knownSet = new Set(appState.knownFlashcards);
+        const filtered = FLASHCARDS.filter(function (c) { return !knownSet.has(c.id); });
+        return filtered.length > 0 ? filtered : FLASHCARDS;
+      }
+      return FLASHCARDS;
+    }
+
+    function renderFlashcard() {
+      const deck = getFilteredFlashcards();
+      if (appState.fcIndex >= deck.length) appState.fcIndex = 0;
+      if (appState.fcIndex < 0) appState.fcIndex = deck.length - 1;
+
+      const card = deck[appState.fcIndex];
+      const face = document.getElementById(`fc-card`);
+      const sideLabel = document.getElementById(`fc-side-label`);
+      const textEl = document.getElementById(`fc-text`);
+      const counter = document.getElementById(`fc-counter`);
+      const knownBtn = document.getElementById(`fc-known-btn`);
+      if (!card || !face || !sideLabel || !textEl || !counter || !knownBtn) return;
+
+      const isKnown = appState.knownFlashcards.indexOf(card.id) !== -1;
+      face.classList.toggle(`is-answer`, fcFlipped);
+      sideLabel.textContent = fcFlipped ? `Answer — Click to View Prompt` : `Prompt — Click to Reveal Answer`;
+      textEl.textContent = fcFlipped ? card.answer : card.prompt;
+      counter.textContent = `Card ${appState.fcIndex + 1} of ${deck.length} · ${appState.knownFlashcards.length}/${FLASHCARDS.length} known`;
+      knownBtn.textContent = isKnown ? `Known (Click to Unmark)` : `Mark as Known`;
+    }
+
+    function flipFlashcard() {
+      fcFlipped = !fcFlipped;
+      renderFlashcard();
+    }
+
+    function handleFlashcardKey(e) {
+      if (e.key === `Enter` || e.key === ` `) {
+        e.preventDefault();
+        flipFlashcard();
+      }
+    }
+
+    function stepFlashcard(delta) {
+      const deck = getFilteredFlashcards();
+      appState.fcIndex = (appState.fcIndex + delta + deck.length) % deck.length;
+      fcFlipped = false;
+      renderFlashcard();
+      persistState();
+    }
+
+    function toggleFlashcardKnown() {
+      const deck = getFilteredFlashcards();
+      const card = deck[appState.fcIndex];
+      if (!card) return;
+      const idx = appState.knownFlashcards.indexOf(card.id);
+      if (idx === -1) {
+        appState.knownFlashcards.push(card.id);
+      } else {
+        appState.knownFlashcards.splice(idx, 1);
+      }
+      renderFlashcard();
+      persistState();
+    }
+
+    function setFlashcardFilter(mode) {
+      appState.fcFilter = mode;
+      appState.fcIndex = 0;
+      fcFlipped = false;
+      const allBtn = document.getElementById(`fc-filter-all`);
+      const revBtn = document.getElementById(`fc-filter-review`);
+      if (allBtn) allBtn.classList.toggle(`is-active`, mode === `all`);
+      if (revBtn) revBtn.classList.toggle(`is-active`, mode === `review`);
+      renderFlashcard();
+      persistState();
+    }
+
+    // =========================================================================
+    // SECTION 6C: SCORED QUIZ
+    // =========================================================================
+    function renderQuiz() {
+      const container = document.getElementById(`quiz-container`);
+      const scoreEl = document.getElementById(`quiz-score-readout`);
+      if (!container || !scoreEl) return;
+
+      let answered = 0;
+      let correctCount = 0;
+
+      container.innerHTML = QUIZ_QUESTIONS.map(function (q, qIdx) {
+        const chosen = appState.quizAnswers[q.id];
+        const hasChosen = typeof chosen === `number`;
+        if (hasChosen) {
+          answered++;
+          if (chosen === q.correct) correctCount++;
+        }
+
+        const optionsHtml = q.options.map(function (opt, optIdx) {
+          let cls = ``;
+          if (hasChosen) {
+            if (optIdx === q.correct) cls = `is-correct`;
+            else if (optIdx === chosen) cls = `is-wrong`;
+          }
+          return `<button type="button" class="quiz-option ${cls}" ${hasChosen ? `disabled` : ``} onclick="answerQuiz('${q.id}', ${optIdx})">
+            <span class="label" style="min-width: 22px;">${String.fromCharCode(65 + optIdx)}</span>
+            <span>${opt}</span>
+          </button>`;
+        }).join(``);
+
+        const feedbackHtml = hasChosen
+          ? `<div class="strip ${chosen === q.correct ? `strip--positive` : `strip--error`}" style="margin-top: var(--space-xs);">
+              <strong>${chosen === q.correct ? `Correct:` : `Incorrect:`}</strong> ${q.explanation}
+            </div>`
+          : ``;
+
+        return `<div class="layer-white" style="display: grid; gap: var(--space-xs);">
+          <span class="label">Scenario ${qIdx + 1} of ${QUIZ_QUESTIONS.length}</span>
+          <div style="font-weight: 600; margin-bottom: var(--space-xs);">${q.question}</div>
+          ${optionsHtml}
+          ${feedbackHtml}
+        </div>`;
+      }).join(``);
+
+      scoreEl.textContent = `Score: ${correctCount} / ${QUIZ_QUESTIONS.length} (${answered} answered)`;
+    }
+
+    function answerQuiz(qId, optIdx) {
+      appState.quizAnswers[qId] = optIdx;
+      renderQuiz();
+      persistState();
+    }
+
+    function resetQuiz(btn) {
+      if (btn && btn.dataset.armed !== `true`) {
+        btn.dataset.armed = `true`;
+        btn.textContent = `Click again to reset`;
+        return;
+      }
+      if (btn) {
+        btn.dataset.armed = `false`;
+        btn.textContent = `Reset Quiz`;
+      }
+      appState.quizAnswers = {};
+      renderQuiz();
+      persistState();
+    }
+
+    // =========================================================================
+    // INITIALIZATION & SHIM LIFECYCLE
+    // =========================================================================
+    async function initApp() {
+      if (window.notebookAppApi) {
+        try {
+          const saved = await window.notebookAppApi.getAppState();
+          if (saved && typeof saved === `object`) {
+            if (Array.isArray(saved.checkedIds)) appState.checkedIds = saved.checkedIds;
+            if (Array.isArray(saved.knownFlashcards)) appState.knownFlashcards = saved.knownFlashcards;
+            if (typeof saved.fcIndex === `number`) appState.fcIndex = saved.fcIndex;
+            if (saved.fcFilter === `all` || saved.fcFilter === `review`) appState.fcFilter = saved.fcFilter;
+            if (saved.quizAnswers && typeof saved.quizAnswers === `object`) appState.quizAnswers = saved.quizAnswers;
+            if (saved.codeTab && JAVA_SNIPPETS[saved.codeTab]) appState.codeTab = saved.codeTab;
+          }
+        } catch (err) {
+          // Proceed with clean defaults if state unavailable
+        }
+      }
+
+      updateDecision();
+      selectVfsLayer(`syscall`, document.querySelector(`.vfs-layer-btn`));
+      setLinkView(`hard`, null);
+      selectNasTopic(`mount`, null);
+      setOssView(`flat`, null);
+      setArchMode(`after`, null);
+      selectMultipartPhase(1, null);
+      renderMultipartParts();
+      selectLifecycleState(`PENDING`, null);
+      renderChecklist();
+
+      // Sync active code tab button
+      const tabBtns = document.querySelectorAll(`.tab-bar .tab-btn`);
+      const tabOrder = [`presign`, `multipart`, `magic`];
+      tabBtns.forEach(function (b, idx) {
+        const active = tabOrder[idx] === appState.codeTab;
+        b.classList.toggle(`is-active`, active);
+        b.setAttribute(`aria-selected`, String(active));
+      });
+      renderCodeTab();
+
+      renderFailureCards();
+      const allBtn = document.getElementById(`fc-filter-all`);
+      const revBtn = document.getElementById(`fc-filter-review`);
+      if (allBtn) allBtn.classList.toggle(`is-active`, appState.fcFilter === `all`);
+      if (revBtn) revBtn.classList.toggle(`is-active`, appState.fcFilter === `review`);
+      renderFlashcard();
+      renderQuiz();
+
+      if (window.lucide) window.lucide.createIcons();
+      if (window.notebookAppApi) {
+        window.notebookAppApi.notifyAppReady();
+      }
+    }
+
+    document.addEventListener(`DOMContentLoaded`, initApp);
+  </script>
+</body>
+</html>
