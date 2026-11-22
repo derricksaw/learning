@@ -2,7 +2,7 @@
 
 Status: ready
 
-Learning: [SQL optimisation](../../../database/sql-optimisation.md).
+Learning: [Database design and SQL optimization (interactive site)](../../../database/database-design-and-sql-optimization.html).
 
 Dependencies: 007; use a bounded offset or completed cursor page as the parent set.
 

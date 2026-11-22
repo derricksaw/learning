@@ -2,7 +2,7 @@
 
 Status: ready
 
-Learning: [SQL optimisation](../../../database/sql-optimisation.md).
+Learning: [Database design and SQL optimization (interactive site)](../../../database/database-design-and-sql-optimization.html).
 
 Dependencies: 007 and the existing order/invoice schema; may be attempted independently of cursor implementation.
 

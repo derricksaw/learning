@@ -2,7 +2,7 @@
 
 Status: ready
 
-Learning: [Database design](../../../database/database-design.md) and [SQL optimisation](../../../database/sql-optimisation.md).
+Learning: [Database design and SQL optimization (interactive site)](../../../database/database-design-and-sql-optimization.html).
 
 ## Scope and supplied pieces
 

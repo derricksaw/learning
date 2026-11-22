@@ -2,7 +2,7 @@
 
 Status: ready
 
-Learning: [SQL optimisation](../../../database/sql-optimisation.md#materialized-views-and-redis-caching).
+Learning: [Database design and SQL optimization (interactive site)](../../../database/database-design-and-sql-optimization.html).
 
 Dependencies: 011's correct live report and V1/V2 evidence; understand 012's freshness tradeoff. Materialized-view completion is not mandatory if Redis fills from live SQL.
 

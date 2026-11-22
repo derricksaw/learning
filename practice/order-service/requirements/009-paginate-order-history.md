@@ -2,7 +2,7 @@
 
 Status: ready
 
-Learning: [SQL optimisation](../../../database/sql-optimisation.md).
+Learning: [Database design and SQL optimization (interactive site)](../../../database/database-design-and-sql-optimization.html).
 
 Dependencies: 007 plan basics; offset and cursor comparisons must use the same active dataset and filter contract.
 

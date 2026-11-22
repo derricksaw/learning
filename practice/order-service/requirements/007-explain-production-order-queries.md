@@ -2,7 +2,7 @@
 
 Status: ready
 
-Learning: [SQL optimisation](../../../database/sql-optimisation.md).
+Learning: [Database design and SQL optimization (interactive site)](../../../database/database-design-and-sql-optimization.html).
 
 Dependencies: No implementation prerequisite; learn this before tuning 008–011.
 
