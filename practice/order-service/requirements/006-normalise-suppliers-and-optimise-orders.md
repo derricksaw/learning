@@ -1,6 +1,6 @@
 # 006 — Normalise suppliers and preserve order reads
 
-Status: ready
+Status: done
 
 Learning: [Database design and SQL optimization (interactive site)](../../../database/database-design-and-sql-optimization.html).
 
@@ -42,4 +42,6 @@ For execution-plan evidence and performance work, continue with [007 — Explain
 - Inventory and latest-order results preserve their contracts after migration. Performance comparisons and index tradeoffs are reviewed in 007–011.
 - Normalisation and tuning are learner work. Default verification is code review plus the supplied manual walkthrough; no new exercise tests are required. Existing backend and frontend checks validate support compatibility, not completion of 006.
 
-Preparation evidence: the frontend production build passed. The existing backend suite ran 28 checks: 27 passed; the health endpoint check failed because Redis was unavailable on port 6380. Flyway applied V8 in the embedded PostgreSQL checks. The new workspace queries, optional workload script and rendered screens were not runtime-verified; query correctness was inspected. Completion remains pending learner implementation and review.
+Preparation evidence: the frontend production build passed. The existing backend suite ran 28 checks: 27 passed; the health endpoint check failed because Redis was unavailable on port 6380. Flyway applied V8 in the embedded PostgreSQL checks. The new workspace queries, optional workload script and rendered screens were not runtime-verified; query correctness was inspected.
+
+Completion evidence: `V9__normalise_suppliers.sql` (fail-fast conflict check, `supplier` table with `NOT NULL` contact columns, backfill + idempotent `'LOCAL'` default seed, column drops, `fk_inventory_supplier`, and `inventory_supplier_code_idx`) applied cleanly in embedded PostgreSQL with `ScaffoldTests` and `AdjustmentSupportTests` passing (7/7 tests). `WorkspaceController.inventory()` and `WorkspaceController.orders()` were verified by inspection; live workspace endpoints, dev seed data, and rendered screens were not runtime-verified. Design-review answers covering rolling-deployment writers and partitioning/sharding boundaries are documented in conversation.

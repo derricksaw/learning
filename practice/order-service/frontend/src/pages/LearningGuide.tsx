@@ -31,15 +31,15 @@ export default function LearningGuide() {
       '005',
       'Idempotency and Redis ownership',
       'Persist one invoice, acquire an expiring lease, and release only your own token.',
-      'Your next exercise',
+      'Reviewed',
     ],
     [
       '006',
       'Normalise suppliers and preserve order reads',
       'Keep Inventory supplier details consistent and preserve existing reads.',
-      'Ready',
+      'Reviewed',
     ],
-    ['007', 'Read and explain production query plans', 'Capture real plans and locate scan, sort and repeated lookup work.', 'Ready'],
+    ['007', 'Read and explain production query plans', 'Capture real plans and locate scan, sort and repeated lookup work.', 'Your next exercise'],
     ['008', 'Tune filtering, search and indexes', 'Preserve filter results while measuring useful access paths and write costs.', 'Ready'],
     ['009', 'Paginate a changing order history', 'Implement cursor continuation, timestamp ties and bounded retrieval.', 'Ready'],
     ['010', 'Retrieve related data efficiently', 'Compare indexed probes, joins and bounded batches under an explicit consistency contract.', 'Ready'],
@@ -66,7 +66,7 @@ export default function LearningGuide() {
               <h2>{title}</h2>
               <p>{detail}</p>
             </div>
-            <Badge tone={['005', '006', '007', '008', '009', '010', '011', '012', '013'].includes(id) ? 'amber' : 'green'}>{state}</Badge>
+            <Badge tone={['007', '008', '009', '010', '011', '012', '013'].includes(id) ? 'amber' : 'green'}>{state}</Badge>
           </section>
         ))}
       </div>
@@ -74,8 +74,10 @@ export default function LearningGuide() {
         <h2>Where to work</h2>
         <p>
           Open <code>practice/order-service/requirements/</code> for the acceptance criteria and
-          target files. Exercise 005 has three inline TODOs in <code>InvoiceRepository</code> and{' '}
-          <code>RedisDocumentLease</code>. Exercise 006 starts in <code>WorkspaceController</code> and the supplier migration. Exercises 007–013 use <code>OrderHistoryRepository</code> and the Orders history/report panels. Keep V1 for EXPLAIN comments and implement improvements in V2; <code>OrderReportReadService</code> contains the materialized-view and cache gaps. Save your implementation and ask for a code review.
+          target files. Exercises 007–011 start in <code>OrderHistoryRepository</code> and the
+          Orders history/report panels—keep V1 for EXPLAIN comments and implement improvements in
+          V2. Exercises 012–013 live in <code>OrderReportReadService</code> (materialized-view and
+          Redis cache gaps). Save your implementation and ask for a code review.
         </p>
         <p>
           This is a local learning environment. Shipping labels and invoice documents are simulated;

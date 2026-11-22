@@ -9,7 +9,7 @@ Each requirement is a focused exercise linked to what you learned. Supporting ap
 | 003 | [Protect carrier calls with local CAS capacity](003-claim-local-capacity.md) | Atomic capacity claims and claim lifetime around carrier calls | in-review |
 | 004 | [Reject stale stock corrections across instances](004-distributed-stock-corrections.md) | Shared database version checks across separate application processes | done |
 | 005 | [Create an invoice once and coordinate rendering](005-invoice-idempotency-and-redis-lease.md) | Durable business-key idempotency versus an owner-checked Redis lease | ready |
-| 006 | [Normalise suppliers and preserve order reads](006-normalise-suppliers-and-optimise-orders.md) | Supplier fact ownership and preserved Inventory/Orders read contracts | ready |
+| 006 | [Normalise suppliers and preserve order reads](006-normalise-suppliers-and-optimise-orders.md) | Supplier fact ownership and preserved Inventory/Orders read contracts | done |
 | 007 | [Explain production order queries](007-explain-production-order-queries.md) | Production SQL optimisation: explain production order queries | ready |
 | 008 | [Optimise order filters, search and indexes](008-optimise-order-filters-and-indexes.md) | Production SQL optimisation: optimise order filters, search and indexes | ready |
 | 009 | [Paginate a changing order history](009-paginate-order-history.md) | Production SQL optimisation: paginate a changing order history | ready |
