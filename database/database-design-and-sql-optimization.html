@@ -1,0 +1,2480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="artifact-type" content="narrative">
+  <meta name="design-style" content="carbon">
+  <title>Database Design &amp; SQL Optimization — PostgreSQL &amp; Java/Spring Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@1.43.0/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+
+      /* 1. Carbon style tokens */
+      --background: #ffffff;
+      --surface-container-low: #f4f4f4;
+      --surface-container: #f4f4f4;
+      --surface-container-high: #e0e0e0;
+
+      --on-surface: #161616;
+      --on-surface-variant: #525252;
+
+      --outline: #8d8d8d;
+      --outline-variant: #e0e0e0;
+
+      --primary: #0f62fe;
+      --on-primary: #ffffff;
+      --primary-container: #d0e2ff;
+      --on-primary-container: #161616;
+      --secondary: #6f6f6f;
+      --tertiary: #198038;
+      --error: #da1e28;
+      --on-error: #ffffff;
+
+      --data-1: #0f62fe;
+      --data-2: #6929c4;
+      --data-3: #005d5d;
+      --data-4: #9f1853;
+      --data-context: #8d8d8d;
+
+      --font-headline: 'IBM Plex Sans', sans-serif;
+      --font-body: 'IBM Plex Sans', sans-serif;
+      --font-label: 'IBM Plex Mono', monospace;
+
+      --rounded: 0.125rem;
+      --rounded-lg: 0.25rem;
+      --rounded-full: 0.75rem;
+
+      --shadow-1: 0 2px 6px rgb(0 0 0 / 0.1);
+      --shadow-2: 0 4px 12px rgb(0 0 0 / 0.12);
+      --rule: 1px solid var(--outline-variant);
+      --field-rule: 1px solid var(--outline);
+      --indicator: 2px solid var(--primary);
+
+      /* 3. Shared tokens */
+      --positive: #198038;
+      --positive-container: #defbe6;
+      --warning: #8a5a00;
+      --warning-container: #fcf4d6;
+      --error-container: #fff1f1;
+      --focus: var(--primary);
+      --primary-hover: color-mix(in srgb, var(--primary), var(--on-surface) 25%);
+      --code-bg: #161616;
+      --code-fg: #f4f4f4;
+      --code-muted: #a8a8a8;
+
+      /* Narrative type scale tuned for Carbon */
+      --display-size: clamp(2.125rem, 1.4rem + 2.6vw, 3.25rem);
+      --headline-size: clamp(1.5rem, 1.2rem + 1.2vw, 2.125rem);
+      --subhead-size: clamp(1.125rem, 1rem + 0.45vw, 1.375rem);
+      --body-size: clamp(1rem, 0.95rem + 0.15vw, 1.0625rem);
+      --label-size: 0.75rem;
+
+      /* Spacing scale (4pt base) */
+      --space-xs: 0.25rem;
+      --space-sm: 0.5rem;
+      --space-md: 1rem;
+      --space-lg: 1.5rem;
+      --space-xl: 2.5rem;
+      --space-2xl: 4rem;
+      --space-3xl: 6rem;
+
+      /* Motion */
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+      --dur-micro: 120ms;
+      --dur-short: 220ms;
+      --dur-long: 420ms;
+    }
+
+    /* Base reset */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      overflow-x: clip;
+      margin: 0;
+      padding: 0;
+      background: var(--background);
+      color: var(--on-surface);
+      font-family: var(--font-body);
+      font-size: var(--body-size);
+      line-height: 1.55;
+      scroll-behavior: smooth;
+    }
+    header { position: static !important; }
+
+    .page-grid {
+      display: grid;
+      gap: var(--space-xl);
+      padding: var(--space-lg) var(--space-lg) var(--space-3xl);
+      max-width: 1180px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    .page-grid * { min-width: 0; }
+
+    /* Focus rings */
+    :focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    /* Typography */
+    .label {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--on-surface-variant);
+      margin: 0;
+    }
+
+    .display-title {
+      font-family: var(--font-headline);
+      font-size: var(--display-size);
+      font-weight: 300;
+      line-height: 1.15;
+      letter-spacing: 0;
+      margin: var(--space-xs) 0 var(--space-md);
+      color: var(--on-surface);
+    }
+    .display-title strong { font-weight: 600; }
+
+    .section-title {
+      font-family: var(--font-headline);
+      font-size: var(--headline-size);
+      font-weight: 300;
+      line-height: 1.2;
+      margin: 0;
+      color: var(--on-surface);
+    }
+    .section-title strong { font-weight: 600; }
+
+    .subhead {
+      font-family: var(--font-headline);
+      font-size: var(--subhead-size);
+      font-weight: 600;
+      line-height: 1.3;
+      margin: 0 0 var(--space-sm);
+      color: var(--on-surface);
+    }
+
+    .lede {
+      font-size: clamp(1.0625rem, 1rem + 0.3vw, 1.1875rem);
+      color: var(--on-surface-variant);
+      max-width: 65ch;
+      margin: 0;
+    }
+
+    .prose-narrow {
+      max-width: 65ch;
+      margin: 0;
+      color: var(--on-surface);
+    }
+
+    .muted {
+      font-size: 0.875rem;
+      color: var(--on-surface-variant);
+      margin: 0;
+    }
+
+    code.inline {
+      font-family: var(--font-label);
+      font-size: 0.875em;
+      background: var(--surface-container-high);
+      color: var(--on-surface);
+      padding: 0.08rem var(--space-xs);
+    }
+
+    /* Section framing */
+    .masthead {
+      border-bottom: var(--rule);
+      padding-bottom: var(--space-xl);
+      display: grid;
+      gap: var(--space-lg);
+    }
+
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+      gap: var(--space-md);
+    }
+
+    .tile {
+      background: var(--surface-container);
+      padding: var(--space-md);
+      display: grid;
+      gap: var(--space-xs);
+      align-content: start;
+    }
+    .tile.is-primary {
+      border-bottom: var(--indicator);
+    }
+    .tile-value {
+      font-family: var(--font-label);
+      font-weight: 300;
+      font-size: clamp(1.375rem, 1.15rem + 0.8vw, 1.75rem);
+      line-height: 1.2;
+      color: var(--on-surface);
+      margin: var(--space-xs) 0 0;
+    }
+
+    .jump-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      padding-top: var(--space-sm);
+    }
+
+    .jump-link {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      text-decoration: none;
+      color: var(--on-surface);
+      background: var(--surface-container);
+      padding: var(--space-sm) var(--space-md);
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      border-bottom: 2px solid transparent;
+      transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+    }
+    .jump-link:hover {
+      background: var(--surface-container-high);
+      border-bottom-color: var(--primary);
+    }
+
+    section.chapter {
+      display: grid;
+      gap: var(--space-lg);
+      padding-top: var(--space-lg);
+      border-top: var(--rule);
+    }
+
+    .section-head {
+      display: grid;
+      gap: var(--space-xs);
+      border-bottom: var(--rule);
+      padding-bottom: var(--space-md);
+    }
+
+    /* Carbon flat gray layers */
+    .layer {
+      background: var(--surface-container);
+      padding: var(--space-lg);
+      display: grid;
+      gap: var(--space-md);
+    }
+    .layer-nested {
+      background: var(--surface-container-high);
+      padding: var(--space-md);
+      display: grid;
+      gap: var(--space-sm);
+    }
+
+    .split-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+      gap: var(--space-lg);
+      align-items: start;
+    }
+
+    .equal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-md);
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+      gap: var(--space-md);
+    }
+
+    /* Carbon Buttons & Tabs */
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      align-items: end;
+    }
+
+    .btn {
+      font-family: var(--font-body);
+      font-size: 0.9375rem;
+      font-weight: 400;
+      min-height: 44px;
+      padding: var(--space-sm) var(--space-lg) var(--space-sm) var(--space-md);
+      border: 1px solid transparent;
+      border-radius: 0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      text-align: left;
+      transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--on-primary);
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-secondary {
+      background: var(--background);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    .btn-secondary:hover {
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+    }
+    .btn-ghost {
+      background: var(--surface-container-high);
+      color: var(--on-surface);
+    }
+    .btn-ghost:hover {
+      background: var(--outline-variant);
+    }
+    .btn.is-active {
+      background: var(--primary);
+      color: var(--on-primary);
+      border-color: var(--primary);
+    }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Carbon segment tabs */
+    .seg-bar {
+      display: flex;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--outline-variant);
+      gap: var(--space-xs);
+    }
+    .seg-btn {
+      font-family: var(--font-body);
+      font-size: 0.9375rem;
+      font-weight: 400;
+      min-height: 44px;
+      padding: var(--space-sm) var(--space-md);
+      background: transparent;
+      color: var(--on-surface-variant);
+      border: 0;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+    }
+    .seg-btn:hover {
+      background: var(--surface-container-high);
+      color: var(--on-surface);
+    }
+    .seg-btn.is-active {
+      color: var(--on-surface);
+      font-weight: 600;
+      border-bottom: var(--indicator);
+    }
+
+    /* Tags & Callout Strips */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 var(--space-sm);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      border-radius: var(--rounded-full);
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      white-space: nowrap;
+    }
+    .tag-ok {
+      background: var(--positive-container);
+      color: var(--positive);
+    }
+    .tag-bad {
+      background: var(--error-container);
+      color: var(--error);
+    }
+    .tag-warn {
+      background: var(--warning-container);
+      color: var(--warning);
+    }
+
+    .notice {
+      background: var(--surface-container);
+      border-left: 3px solid var(--primary);
+      padding: var(--space-md);
+      display: grid;
+      gap: var(--space-xs);
+    }
+    .notice.is-positive { border-left-color: var(--positive); }
+    .notice.is-error { border-left-color: var(--error); }
+    .notice.is-warning { border-left-color: var(--warning); }
+
+    /* Tables */
+    .table-wrap {
+      overflow-x: auto;
+      background: var(--background);
+      border: var(--rule);
+    }
+    table.carbon-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9375rem;
+    }
+    table.carbon-table thead th {
+      background: var(--surface-container-high);
+      color: var(--on-surface);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      text-align: left;
+      padding: var(--space-sm) var(--space-md);
+      border-bottom: var(--rule);
+    }
+    table.carbon-table tbody td {
+      padding: var(--space-sm) var(--space-md);
+      border-bottom: var(--rule);
+      vertical-align: top;
+      color: var(--on-surface);
+    }
+    table.carbon-table tbody tr:nth-child(even) {
+      background: var(--surface-container-low);
+    }
+    table.carbon-table tbody tr.is-highlighted {
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+    }
+    table.carbon-table .num {
+      text-align: right;
+      font-family: var(--font-label);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    /* Code blocks */
+    pre.code-block {
+      margin: 0;
+      background: var(--code-bg);
+      color: var(--code-fg);
+      font-family: var(--font-label);
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      padding: var(--space-md);
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    /* Interactive Plan Tree */
+    .plan-tree {
+      display: grid;
+      gap: var(--space-xs);
+    }
+    .plan-node {
+      display: grid;
+      gap: var(--space-xs);
+      width: 100%;
+      text-align: left;
+      background: var(--background);
+      border: var(--rule);
+      border-left: 3px solid var(--outline);
+      padding: var(--space-sm) var(--space-md);
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+    }
+    .plan-node:hover {
+      background: var(--surface-container-high);
+    }
+    .plan-node.is-selected {
+      background: var(--primary-container);
+      border-left-color: var(--primary);
+    }
+    .plan-node.is-warn {
+      border-left-color: var(--error);
+    }
+    .plan-node.is-good {
+      border-left-color: var(--positive);
+    }
+    .plan-node-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-sm);
+      font-family: var(--font-label);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--on-surface);
+    }
+    .plan-node-meta {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+    }
+
+    /* Form inputs & range slider */
+    .field-group {
+      display: grid;
+      gap: var(--space-xs);
+    }
+    .field-label {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--on-surface-variant);
+    }
+    select.carbon-select {
+      height: 44px;
+      background: var(--background);
+      color: var(--on-surface);
+      border: 0;
+      border-bottom: var(--field-rule);
+      padding: 0 var(--space-xl) 0 var(--space-md);
+      font-family: var(--font-body);
+      font-size: 0.9375rem;
+      cursor: pointer;
+    }
+    input[type="range"].carbon-range {
+      width: 100%;
+      min-height: 44px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* SVG chart containers */
+    .viz-box {
+      background: var(--background);
+      border: var(--rule);
+      padding: var(--space-md);
+      min-height: 220px;
+      display: grid;
+      gap: var(--space-sm);
+    }
+
+    /* Flashcards */
+    .flashcard-stage {
+      background: var(--background);
+      border: var(--rule);
+      border-bottom: var(--indicator);
+      padding: var(--space-xl) var(--space-lg);
+      min-height: 220px;
+      display: grid;
+      align-content: space-between;
+      gap: var(--space-md);
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+    }
+    .flashcard-stage:hover {
+      background: var(--surface-container-low);
+    }
+    .flashcard-q {
+      font-family: var(--font-headline);
+      font-size: var(--subhead-size);
+      font-weight: 600;
+      color: var(--on-surface);
+      margin: 0;
+    }
+    .flashcard-a {
+      font-size: 1rem;
+      color: var(--on-surface);
+      border-top: var(--rule);
+      padding-top: var(--space-md);
+      margin: 0;
+    }
+
+    /* Quiz */
+    .quiz-options {
+      display: grid;
+      gap: var(--space-sm);
+    }
+    .quiz-opt {
+      width: 100%;
+      min-height: 44px;
+      padding: var(--space-sm) var(--space-md);
+      background: var(--background);
+      color: var(--on-surface);
+      border: var(--rule);
+      text-align: left;
+      font-family: var(--font-body);
+      font-size: 0.9375rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      transition: background-color var(--dur-micro) var(--ease-out);
+    }
+    .quiz-opt:hover:not(:disabled) {
+      background: var(--surface-container-high);
+    }
+    .quiz-opt.is-picked-ok {
+      background: var(--positive-container);
+      border-color: var(--positive);
+      color: var(--on-surface);
+    }
+    .quiz-opt.is-picked-bad {
+      background: var(--error-container);
+      border-color: var(--error);
+      color: var(--on-surface);
+    }
+
+    .schema-list {
+      display: grid;
+      gap: var(--space-sm);
+    }
+    .schema-card {
+      background: var(--background);
+      border: var(--rule);
+      padding: var(--space-md);
+      display: grid;
+      gap: var(--space-sm);
+    }
+
+    .footer-sources {
+      border-top: var(--rule);
+      padding-top: var(--space-lg);
+      display: grid;
+      gap: var(--space-xs);
+    }
+
+    /* Container queries for adaptive cards */
+    .card-wrapper { container-type: inline-size; }
+    @container (min-width: 560px) {
+      .adaptive-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @container (max-width: 559px) {
+      .adaptive-two { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 820px) {
+      .split-grid, .equal-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page-grid {
+        padding: var(--space-md) var(--space-md) var(--space-2xl);
+        gap: var(--space-lg);
+      }
+      .layer {
+        padding: var(--space-md);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-grid">
+
+    <!-- MASTHEAD -->
+    <header class="masthead">
+      <div>
+        <p class="label">PostgreSQL 15–18 · Java / Spring JdbcTemplate · Architecture &amp; Tuning</p>
+        <h1 class="display-title">Database Design and <strong>SQL Optimization</strong></h1>
+        <p class="lede">
+          An interactive engineering field guide to relational invariants, declarative partitioning vs. sharding, execution-plan decoding, keyset pagination, and safe caching.
+        </p>
+      </div>
+
+      <div class="kpi-strip">
+        <div class="tile is-primary">
+          <p class="label">Schema Principle</p>
+          <p class="tile-value">1 Fact, 1 Place</p>
+          <p class="muted">Functional dependencies drive 1NF → BCNF; surrogate IDs never fix bad dependencies.</p>
+        </div>
+        <div class="tile">
+          <p class="label">Range Pruning Gain</p>
+          <p class="tile-value">12.5s → 1.3s</p>
+          <p class="muted">Monthly SELECT latency drop vs. unpartitioned full scan (~60% less vacuum time).</p>
+        </div>
+        <div class="tile">
+          <p class="label">Pagination at 1M Rows</p>
+          <p class="tile-value">87ms → &lt;1ms</p>
+          <p class="muted">Composite keyset cursor O(1) vs. OFFSET 1,000,000 O(n) linear scan.</p>
+        </div>
+        <div class="tile">
+          <p class="label">Self-Check Progress</p>
+          <p class="tile-value" id="hdr-progress">0 / 8 Quiz</p>
+          <p class="muted" id="hdr-cards">0 / 8 Flashcards reviewed</p>
+        </div>
+      </div>
+
+      <nav class="jump-nav" aria-label="Section navigation">
+        <a class="jump-link" href="#sec-1">01 · Normalization &amp; Invariants</a>
+        <a class="jump-link" href="#sec-2">02 · Partitioning vs. Sharding</a>
+        <a class="jump-link" href="#sec-3">03 · EXPLAIN &amp; B-Tree Indexes</a>
+        <a class="jump-link" href="#sec-4">04 · SQL Patterns &amp; JdbcTemplate</a>
+        <a class="jump-link" href="#sec-5">05 · Caching, MVs &amp; Self-Check</a>
+      </nav>
+    </header>
+
+    <!-- SECTION 1 -->
+    <section class="chapter" id="sec-1">
+      <div class="section-head">
+        <p class="label">Section 01 · Relational Modeling &amp; Safe Evolutions</p>
+        <h2 class="section-title">Design from <strong>invariants and dependencies</strong>, not API payloads</h2>
+        <p class="prose-narrow">
+          Normalization eliminates insertion, update, and deletion anomalies by ensuring every non-trivial determinant is a key. Step through the normal forms and trigger live anomalies below.
+        </p>
+      </div>
+
+      <!-- Interactive Normalization Step-Through -->
+      <div class="layer">
+        <div class="btn-row" role="group" aria-label="Normal form progression">
+          <button type="button" class="seg-btn is-active" id="nf-btn-0" onclick="setNormStep(0)">0NF · Repeating List</button>
+          <button type="button" class="seg-btn" id="nf-btn-1" onclick="setNormStep(1)">1NF · Atomic &amp; Keyed</button>
+          <button type="button" class="seg-btn" id="nf-btn-2" onclick="setNormStep(2)">2NF · Full Key</button>
+          <button type="button" class="seg-btn" id="nf-btn-3" onclick="setNormStep(3)">3NF · No Transitives</button>
+          <button type="button" class="seg-btn" id="nf-btn-4" onclick="setNormStep(4)">BCNF · Determinant = Key</button>
+        </div>
+
+        <div class="split-grid">
+          <div class="schema-list" id="nf-tables"></div>
+
+          <div class="layer-nested">
+            <p class="label" id="nf-rule-label">Rule &amp; Functional Dependencies</p>
+            <h3 class="subhead" id="nf-title">0NF: List inside a single cell</h3>
+            <p class="muted" id="nf-desc"></p>
+            <div class="notice is-warning" id="nf-fd-box">
+              <p class="label">Functional Dependencies</p>
+              <p class="muted" id="nf-fds"></p>
+            </div>
+
+            <p class="label" style="margin-top: var(--space-sm);">Test Anomalies on Current Schema</p>
+            <div class="btn-row">
+              <button type="button" class="btn btn-secondary" onclick="runAnomalyDemo('insert')">Insert NW301 (0 students)</button>
+              <button type="button" class="btn btn-secondary" onclick="runAnomalyDemo('update')">Update DB101 Instructor</button>
+              <button type="button" class="btn btn-secondary" onclick="runAnomalyDemo('delete')">Delete Sole Enrollment</button>
+            </div>
+            <div class="notice" id="anomaly-output">
+              <p class="label">Anomaly Probe</p>
+              <p class="muted">Select an operation above to see whether the active normal form prevents or suffers data corruption.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Facts vs Historical Snapshots & Types/NULL Traps -->
+      <div class="equal-grid">
+        <div class="layer">
+          <p class="label">Invariant · Fact Ownership</p>
+          <h3 class="subhead">Current Facts vs. Historical Snapshots</h3>
+          <p class="muted">
+            Storing <code class="inline">unit_price_at_sale</code> on <code class="inline">order_items</code> while <code class="inline">products.list_price</code> remains mutable is <strong>not denormalization</strong>. They are two distinct real-world facts.
+          </p>
+          <pre class="code-block">CREATE TABLE products (
+  product_id   VARCHAR(10) PRIMARY KEY,
+  product_name VARCHAR(100) NOT NULL,
+  list_price   NUMERIC(10,2) NOT NULL -- today's catalogue price
+);
+
+CREATE TABLE order_items (
+  order_id           INT REFERENCES orders(order_id),
+  product_id         VARCHAR(10) REFERENCES products(product_id),
+  quantity           INT NOT NULL CHECK (quantity &gt; 0),
+  unit_price_at_sale NUMERIC(10,2) NOT NULL, -- immutable snapshot
+  PRIMARY KEY (order_id, product_id)
+);</pre>
+          <div class="notice is-positive">
+            <p class="label">Why It Matters</p>
+            <p class="muted">If you referenced only <code class="inline">products.list_price</code>, raising a catalogue price would silently rewrite the financial history of every past order.</p>
+          </div>
+        </div>
+
+        <div class="layer">
+          <p class="label">PostgreSQL Types &amp; Constraints</p>
+          <h3 class="subhead">Identity, Precision &amp; SQL NULL Traps</h3>
+          <div class="table-wrap">
+            <table class="carbon-table">
+              <thead>
+                <tr>
+                  <th>Domain</th>
+                  <th>Trap</th>
+                  <th>Safe PostgreSQL Invariant</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Keys</strong></td>
+                  <td>Conflating surrogate PK with API payload IDs</td>
+                  <td>Stable surrogate PK + <code class="inline">UNIQUE (tenant_id, external_ref)</code></td>
+                </tr>
+                <tr>
+                  <td><strong>Money</strong></td>
+                  <td>IEEE-754 <code class="inline">FLOAT</code> rounding drift</td>
+                  <td><code class="inline">NUMERIC(12,2)</code> or integer minor units + ISO currency code</td>
+                </tr>
+                <tr>
+                  <td><strong>Time</strong></td>
+                  <td>Unzoned <code class="inline">TIMESTAMP</code> vs. calendar dates</td>
+                  <td><code class="inline">TIMESTAMPTZ</code> for instants; <code class="inline">DATE</code> for calendar dates</td>
+                </tr>
+                <tr>
+                  <td><strong>NULL Checks</strong></td>
+                  <td><code class="inline">CHECK (qty &gt; 0)</code> passes when <code class="inline">qty IS NULL</code> (SQL <code class="inline">UNKNOWN</code> passes!)</td>
+                  <td>Always combine <code class="inline">NOT NULL</code> with <code class="inline">CHECK (qty &gt; 0)</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Safe Expand/Contract Schema Migration Explorer -->
+      <div class="layer">
+        <div class="section-head" style="padding-bottom: var(--space-sm);">
+          <p class="label">Zero-Downtime Schema Evolution</p>
+          <h3 class="subhead">Safe Expand / Contract Migration Sequence</h3>
+        </div>
+        <div class="btn-row" role="group" aria-label="Migration phases">
+          <button type="button" class="seg-btn is-active" id="mig-btn-0" onclick="setMigStep(0)">1 · Expand &amp; Seed Parents</button>
+          <button type="button" class="seg-btn" id="mig-btn-1" onclick="setMigStep(1)">2 · Dual-Write &amp; Backfill</button>
+          <button type="button" class="seg-btn" id="mig-btn-2" onclick="setMigStep(2)">3 · Conflict Audit &amp; FK Verify</button>
+          <button type="button" class="seg-btn" id="mig-btn-3" onclick="setMigStep(3)">4 · Contract &amp; Index FKs</button>
+        </div>
+        <div class="split-grid">
+          <pre class="code-block" id="mig-sql"></pre>
+          <div class="layer-nested">
+            <span class="tag" id="mig-tag">Phase 1 · Expand</span>
+            <h4 class="subhead" id="mig-title">Add nullable target structures without breaking rolling writers</h4>
+            <p class="muted" id="mig-body"></p>
+            <div class="notice is-error">
+              <p class="label">Critical Safeguard</p>
+              <p class="muted" id="mig-guard"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2 -->
+    <section class="chapter" id="sec-2">
+      <div class="section-head">
+        <p class="label">Section 02 · Single-Node Partitioning vs. Distributed Sharding</p>
+        <h2 class="section-title">Scale the <strong>measured bottleneck in order</strong></h2>
+        <p class="prose-narrow">
+          Exhaust query tuning, declarative partitioning, and caching before introducing multi-node sharding. Click any rung on the decision ladder, then test partition pruning.
+        </p>
+      </div>
+
+      <!-- Visual Decision Ladder -->
+      <div class="layer">
+        <p class="label">Interactive Escalation Ladder</p>
+        <div class="btn-row" role="group" aria-label="Scaling decision ladder">
+          <button type="button" class="btn btn-ghost is-active" id="lad-btn-0" onclick="setLadderStep(0)">1. Query &amp; Index Tuning</button>
+          <button type="button" class="btn btn-ghost" id="lad-btn-1" onclick="setLadderStep(1)">2. Archival &amp; Partitioning</button>
+          <button type="button" class="btn btn-ghost" id="lad-btn-2" onclick="setLadderStep(2)">3. Caching &amp; Read Replicas</button>
+          <button type="button" class="btn btn-ghost" id="lad-btn-3" onclick="setLadderStep(3)">4. Vertical / Domain Split</button>
+          <button type="button" class="btn btn-ghost" id="lad-btn-4" onclick="setLadderStep(4)">5. Horizontal Sharding</button>
+        </div>
+        <div class="layer-nested" id="ladder-detail"></div>
+      </div>
+
+      <!-- Interactive Declarative Partition Pruning & Benchmark Chart -->
+      <div class="split-grid">
+        <div class="layer">
+          <p class="label">PostgreSQL 10+ Declarative Partitioning</p>
+          <h3 class="subhead">Interactive Partition Pruning Simulator</h3>
+          <div class="equal-grid">
+            <div class="field-group">
+              <label class="field-label" for="part-strategy">Partitioning Method</label>
+              <select class="carbon-select" id="part-strategy" onchange="renderPartitionDiagram()">
+                <option value="range">RANGE (order_date)</option>
+                <option value="list">LIST (region)</option>
+                <option value="hash">HASH (customer_id)</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="part-filter">Query Predicate</label>
+              <select class="carbon-select" id="part-filter" onchange="renderPartitionDiagram()">
+                <option value="with">Includes partition key (Pruned)</option>
+                <option value="without">Omits partition key (Scans all)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="viz-box" id="part-svg-wrap" style="min-height: 230px;"></div>
+          <pre class="code-block" id="part-sql"></pre>
+          <div class="notice">
+            <p class="label">Partitioned Constraint &amp; Retention Rules</p>
+            <p class="muted">Partitioned <code class="inline">PRIMARY KEY</code> and <code class="inline">UNIQUE</code> constraints must include all partition-key columns. For retention, <code class="inline">ALTER TABLE ... DETACH PARTITION</code> drops expired history instantaneously without row-by-row <code class="inline">DELETE</code> bloat.</p>
+          </div>
+        </div>
+
+        <div class="layer">
+          <p class="label">Empirical Benchmark (Billion-Row Study)</p>
+          <h3 class="subhead">Partitioning Speedup &amp; Vacuum Reduction</h3>
+          <p class="muted">Measured latency (seconds, lower is better) on monthly SELECT and Aggregate workloads across PostgreSQL 15 strategies:</p>
+          <div class="viz-box" style="min-height: 260px;">
+            <svg viewBox="0 0 460 220" width="100%" height="220" role="img" aria-label="Bar chart comparing PostgreSQL query latency across no partitioning, range, list, and hash partitioning">
+              <line x1="50" y1="20" x2="50" y2="180" stroke="var(--outline-variant)" stroke-width="1"/>
+              <line x1="50" y1="180" x2="445" y2="180" stroke="var(--on-surface)" stroke-width="1"/>
+              <line x1="50" y1="140" x2="445" y2="140" stroke="var(--outline-variant)" stroke-width="1"/>
+              <line x1="50" y1="100" x2="445" y2="100" stroke="var(--outline-variant)" stroke-width="1"/>
+              <line x1="50" y1="60" x2="445" y2="60" stroke="var(--outline-variant)" stroke-width="1"/>
+              <line x1="50" y1="20" x2="445" y2="20" stroke="var(--outline-variant)" stroke-width="1"/>
+
+              <text x="42" y="184" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--on-surface-variant)">0s</text>
+              <text x="42" y="144" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--on-surface-variant)">5s</text>
+              <text x="42" y="104" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--on-surface-variant)">10s</text>
+              <text x="42" y="64" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--on-surface-variant)">15s</text>
+              <text x="42" y="24" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--on-surface-variant)">20s</text>
+
+              <!-- None: 12.5s (100px), 18.2s (145.6px) -->
+              <rect x="70" y="80" width="26" height="100" fill="var(--data-context)"/>
+              <text x="83" y="75" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--on-surface)">12.5</text>
+              <rect x="98" y="34.4" width="26" height="145.6" fill="var(--error)"/>
+              <text x="111" y="29" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--error)">18.2</text>
+              <text x="97" y="198" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--on-surface)">None</text>
+
+              <!-- Range: 1.3s (10.4px), 4.0s (32px) -->
+              <rect x="165" y="169.6" width="26" height="10.4" fill="var(--data-1)"/>
+              <text x="178" y="164" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--data-1)">1.3</text>
+              <rect x="193" y="148" width="26" height="32" fill="var(--data-2)"/>
+              <text x="206" y="142" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--data-2)">4.0</text>
+              <text x="192" y="198" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--on-surface)">Range</text>
+
+              <!-- List: 1.5s (12px), 4.5s (36px) -->
+              <rect x="260" y="168" width="26" height="12" fill="var(--data-1)"/>
+              <text x="273" y="162" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--data-1)">1.5</text>
+              <rect x="288" y="144" width="26" height="36" fill="var(--data-2)"/>
+              <text x="301" y="138" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--data-2)">4.5</text>
+              <text x="287" y="198" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--on-surface)">List</text>
+
+              <!-- Hash: 1.7s (13.6px), 5.0s (40px) -->
+              <rect x="355" y="166.4" width="26" height="13.6" fill="var(--data-1)"/>
+              <text x="368" y="160" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--data-1)">1.7</text>
+              <rect x="383" y="140" width="26" height="40" fill="var(--data-2)"/>
+              <text x="396" y="134" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--data-2)">5.0</text>
+              <text x="382" y="198" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--on-surface)">Hash</text>
+            </svg>
+            <div class="btn-row" style="gap: var(--space-md);">
+              <span class="tag">Blue / Gray = Monthly SELECT (s)</span>
+              <span class="tag">Purple / Red = Aggregate Query (s)</span>
+              <span class="tag tag-ok">~60% Lower Vacuum Time</span>
+            </div>
+          </div>
+          <p class="muted">Time-series workloads also leverage TimescaleDB hypertables (automated chunk partitioning, 90–95% compression policies, and S3 tiered storage).</p>
+        </div>
+      </div>
+
+      <!-- Horizontal Sharding: Co-Location vs Fan-Out -->
+      <div class="layer">
+        <p class="label">Multi-Node Distributed PostgreSQL (Citus Architecture)</p>
+        <h3 class="subhead">Shard-Key Co-Location vs. Cross-Shard Fan-Out &amp; Resharding</h3>
+        <div class="table-wrap">
+          <table class="carbon-table">
+            <thead>
+              <tr>
+                <th>Dimension</th>
+                <th>Co-Located Pattern (<code class="inline">tenant_id</code>)</th>
+                <th>Cross-Shard / Anti-Pattern Tradeoff</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Local Joins &amp; FKs</strong></td>
+                <td>Both parent &amp; child share distribution column; PK/UNIQUE include <code class="inline">tenant_id</code>; JOINs run locally on one worker.</td>
+                <td>Mismatched shard keys force cross-worker data shuffling and network serialization overhead.</td>
+              </tr>
+              <tr>
+                <td><strong>Skew &amp; Shard Count</strong></td>
+                <td>32–128 shards balance parallelism vs. planner metadata overhead (<code class="inline">citus_rebalance_start()</code>).</td>
+                <td>A single "hot tenant" (whale customer) pins CPU/I/O onto one shard and worker node.</td>
+              </tr>
+              <tr>
+                <td><strong>Global Queries &amp; Uniqueness</strong></td>
+                <td>Tenant-scoped queries route to 1 shard via the coordinator node.</td>
+                <td>Global uniqueness, cross-shard transactions, and global Top-K (<code class="inline">ORDER BY ... LIMIT K</code>) require distributed coordination and merging top K per shard.</td>
+              </tr>
+              <tr>
+                <td><strong>Resharding &amp; HA</strong></td>
+                <td>HA replicas on coordinator and workers eliminate single points of failure.</td>
+                <td>Online resharding requires CDC replay, keyed checksum verification, and fencing stale writers; standalone nodes create SPOFs.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3 -->
+    <section class="chapter" id="sec-3">
+      <div class="section-head">
+        <p class="label">Section 03 · Execution Plans &amp; Index Architecture</p>
+        <h2 class="section-title">Decode <strong>EXPLAIN (ANALYZE, BUFFERS)</strong> bottom-up</h2>
+        <p class="prose-narrow">
+          Never guess why a query is slow or whether an index helps. Click any plan node below to inspect inclusive timing, buffer hits vs. OS reads, loop multipliers, and row-estimate gaps.
+        </p>
+      </div>
+
+      <!-- Interactive EXPLAIN (ANALYZE, BUFFERS) Decoder -->
+      <div class="layer">
+        <div class="btn-row" role="group" aria-label="Execution plan state">
+          <button type="button" class="seg-btn is-active" id="exp-mode-bad" onclick="setExplainMode('bad')">Before · Bad Estimate + Disk Spill + SubPlan</button>
+          <button type="button" class="seg-btn" id="exp-mode-good" onclick="setExplainMode('good')">After · Covering Index + Extended Stats</button>
+        </div>
+
+        <div class="split-grid">
+          <div class="plan-tree" id="explain-tree"></div>
+          <div class="layer-nested" id="explain-inspector"></div>
+        </div>
+
+        <div class="card-grid">
+          <div class="notice">
+            <p class="label">Rule 1 · Inclusive Parents</p>
+            <p class="muted">Parent <code class="inline">actual time</code> and <code class="inline">Buffers</code> include all child nodes beneath them. Never sum the whole tree.</p>
+          </div>
+          <div class="notice">
+            <p class="label">Rule 2 · Loops Multiply</p>
+            <p class="muted">Per-loop time × <code class="inline">loops</code> reveals hidden O(N×M) nested-loop or correlated <code class="inline">SubPlan</code> explosions.</p>
+          </div>
+          <div class="notice">
+            <p class="label">Rule 3 · Statistics &amp; Spill</p>
+            <p class="muted">Large est vs. actual row gaps need <code class="inline">ANALYZE</code>, <code class="inline">SET STATISTICS 1000</code>, or <code class="inline">CREATE STATISTICS</code>. <code class="inline">external merge Disk</code> signals <code class="inline">work_mem</code> spill.</p>
+          </div>
+          <div class="notice is-warning">
+            <p class="label">Rule 4 · DML Safety</p>
+            <p class="muted"><code class="inline">EXPLAIN ANALYZE</code> executes <code class="inline">UPDATE</code>/<code class="inline">DELETE</code>! Wrap in <code class="inline">BEGIN; ... ROLLBACK;</code> (still takes locks &amp; increments sequences).</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Composite B-Tree & Specialized Index Explorer -->
+      <div class="layer">
+        <p class="label">Index Strategy &amp; Sargability Explorer</p>
+        <h3 class="subhead">Equality → Sort/Range Order, Leftmost Prefix &amp; Specialized Indexes</h3>
+        <p class="muted">Target schema: <code class="inline">CREATE INDEX idx_orders_cust_created ON orders (customer_id, created_at DESC, id DESC) INCLUDE (total_amount);</code></p>
+
+        <div class="field-group">
+          <label class="field-label" for="idx-query-select">Select a Query Predicate to Evaluate</label>
+          <select class="carbon-select" id="idx-query-select" onchange="renderIndexCheck()">
+            <option value="0">1. Equality + Sort Match: WHERE customer_id = 42 ORDER BY created_at DESC, id DESC LIMIT 20</option>
+            <option value="1">2. Missing Leading Column: WHERE created_at &gt;= '2026-06-10T00:00Z' AND created_at &lt; '2026-06-11T00:00Z'</option>
+            <option value="2">3. Non-Sargable Function: WHERE DATE(created_at) = '2026-06-10' AND customer_id = 42</option>
+            <option value="3">4. Hot Subset (5% Pending): WHERE status = 'pending' AND created_at &gt; '2026-01-01'</option>
+            <option value="4">5. Computed Login Lookup: WHERE lower(email) = 'asha@uni.edu'</option>
+            <option value="5">6. Leading Wildcard Search: WHERE email LIKE '%@example.com'</option>
+          </select>
+        </div>
+
+        <div class="split-grid" id="idx-result"></div>
+
+        <div class="table-wrap">
+          <table class="carbon-table">
+            <thead>
+              <tr>
+                <th>Index Type</th>
+                <th>Best Workload</th>
+                <th>PostgreSQL Syntax &amp; Maintenance Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>B-Tree (Default)</strong></td>
+                <td>Equality, ranges (<code class="inline">&lt; &gt; BETWEEN</code>), <code class="inline">ORDER BY</code>, prefix <code class="inline">LIKE 'abc%'</code> (with <code class="inline">text_pattern_ops</code> or C collation)</td>
+                <td>Order composite keys: equality first, then range/sort. Build online with <code class="inline">CREATE INDEX CONCURRENTLY</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Covering (<code class="inline">INCLUDE</code>)</strong></td>
+                <td>Hot read queries answered via <strong>Index-Only Scan</strong></td>
+                <td>Depends on visibility map; stale <code class="inline">VACUUM</code> causes <code class="inline">Heap Fetches</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>GIN</strong></td>
+                <td><code class="inline">JSONB</code> containment, arrays, full-text search, <code class="inline">pg_trgm</code> <code class="inline">%substr%</code></td>
+                <td>Higher write cost than B-tree; prune unused indexes via <code class="inline">pg_stat_user_indexes</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>BRIN &amp; Hash</strong></td>
+                <td>BRIN: huge append-only time-series blocks; Hash: pure <code class="inline">=</code> lookups</td>
+                <td>Rebuild bloated indexes safely via <code class="inline">REINDEX CONCURRENTLY</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4 -->
+    <section class="chapter" id="sec-4">
+      <div class="section-head">
+        <p class="label">Section 04 · Correctness-First Rewrites &amp; Java Data Access</p>
+        <h2 class="section-title">Production <strong>SQL + JdbcTemplate</strong> patterns</h2>
+        <p class="prose-narrow">
+          Eliminate three-valued NULL bugs, join fan-out inflation, linear OFFSET degradation, and N+1 round trips. Toggle between anti-patterns and production fixes below.
+        </p>
+      </div>
+
+      <!-- 5 Production Pattern Toggles -->
+      <div class="layer">
+        <div class="btn-row" role="group" aria-label="Production SQL patterns">
+          <button type="button" class="seg-btn is-active" id="pat-btn-0" onclick="setPattern(0)">1 · EXISTS vs JOIN+DISTINCT</button>
+          <button type="button" class="seg-btn" id="pat-btn-1" onclick="setPattern(1)">2 · NOT EXISTS vs NULL NOT IN</button>
+          <button type="button" class="seg-btn" id="pat-btn-2" onclick="setPattern(2)">3 · Join Fan-Out Pre-Agg</button>
+          <button type="button" class="seg-btn" id="pat-btn-3" onclick="setPattern(3)">4 · Keyset vs OFFSET</button>
+          <button type="button" class="seg-btn" id="pat-btn-4" onclick="setPattern(4)">5 · Batch ANY(?) vs N+1</button>
+        </div>
+
+        <div id="pattern-panel" class="layer-nested" style="gap: var(--space-md);"></div>
+      </div>
+
+      <!-- Interactive OFFSET vs Keyset Latency & Drift Visualizer -->
+      <div class="layer">
+        <p class="label">Interactive Pagination Simulator</p>
+        <h3 class="subhead">Why Deep OFFSET Fails: Linear O(n) Scan &amp; Row Drift</h3>
+        <div class="split-grid">
+          <div class="layer-nested">
+            <div class="field-group">
+              <label class="field-label" for="page-depth-slider">Simulated Page Depth (20 rows/page): <span id="page-depth-label">Page 1 (OFFSET 0)</span></label>
+              <input type="range" class="carbon-range" id="page-depth-slider" min="0" max="3" step="1" value="0" oninput="updatePaginationSim(this.value)">
+            </div>
+            <div class="equal-grid">
+              <div class="tile" style="background: var(--background);">
+                <p class="label">OFFSET Latency</p>
+                <p class="tile-value" id="sim-offset-ms" style="color: var(--error);">0.47 ms</p>
+                <p class="muted" id="sim-offset-rows">Discards 0 rows</p>
+              </div>
+              <div class="tile" style="background: var(--background); border-bottom: var(--indicator);">
+                <p class="label">Keyset Seek Latency</p>
+                <p class="tile-value" id="sim-keyset-ms" style="color: var(--positive);">0.45 ms</p>
+                <p class="muted">Index seek O(1) at any depth</p>
+              </div>
+            </div>
+            <div class="notice is-warning">
+              <p class="label">Concurrent Tail Commit Caveat</p>
+              <p class="muted">PostgreSQL sequences and <code class="inline">now()</code> timestamps can commit out of order at the tail. Capture a boundary <code class="inline">(updated_at, id)</code> before traversal to prevent duplicate/missed recent rows.</p>
+            </div>
+          </div>
+
+          <div class="layer-nested">
+            <p class="label">Live Row Drift Demo (Page Size = 3)</p>
+            <p class="muted">Delete row #2 while a user moves from Page 1 → Page 2:</p>
+            <div class="btn-row">
+              <button type="button" class="btn btn-secondary" id="drift-toggle-btn" onclick="toggleRowDrift()">Simulate Deleting Row #2</button>
+            </div>
+            <div id="drift-table-wrap"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5 -->
+    <section class="chapter" id="sec-5">
+      <div class="section-head">
+        <p class="label">Section 05 · Materialized Views, Redis Caching &amp; Self-Check</p>
+        <h2 class="section-title">Freshness vs. speed &amp; <strong>mastery verification</strong></h2>
+        <p class="prose-narrow">
+          Materialized views and Redis cache-aside both trade strict freshness for predictable latency. Compare their lock and invalidation failure modes, then test your recall.
+        </p>
+      </div>
+
+      <!-- Live SQL vs Materialized View vs Redis Cache-Aside -->
+      <div class="table-wrap">
+        <table class="carbon-table">
+          <thead>
+            <tr>
+              <th>Dimension</th>
+              <th>Live PostgreSQL Query</th>
+              <th>PostgreSQL Materialized View</th>
+              <th>Redis Cache-Aside</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Freshness</strong></td>
+              <td>Real-time (MVCC snapshot)</td>
+              <td>Stale until next <code class="inline">REFRESH</code></td>
+              <td>TTL-bounded or event-invalidated</td>
+            </tr>
+            <tr>
+              <td><strong>Concurrency &amp; Locks</strong></td>
+              <td>MVCC readers never block writers</td>
+              <td>Non-concurrent refresh acquires exclusive locks on dependencies (can trigger OOM). Use <code class="inline">CONCURRENTLY</code> on high-dependency MVs.</td>
+              <td>Must guard against cache stampedes and racing stale fills after invalidation; fall back to DB on <code class="inline">RedisError</code>.</td>
+            </tr>
+            <tr>
+              <td><strong>Hard Prerequisites</strong></td>
+              <td>Composite/covering indexes + <code class="inline">pg_stat_statements</code></td>
+              <td><code class="inline">CONCURRENTLY</code> requires an already-populated MV + a <code class="inline">UNIQUE</code> index on plain columns; periodic <code class="inline">REINDEX CONCURRENTLY</code>.</td>
+              <td>Namespaced/versioned keys (<code class="inline">user:profile:{id}</code>), bounded TTLs, <code class="inline">allkeys-lru</code>, <code class="inline">appendonly yes</code>.</td>
+            </tr>
+            <tr>
+              <td><strong>Best Pattern</strong></td>
+              <td>Transactional OLTP truth &amp; low-latency seeks</td>
+              <td>Dual-DB (Trans DB + Cache DB via FDW) or heavy multi-join reporting aggregates</td>
+              <td>Hot entity reads &amp; pre-warmed high-QPS lookups</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- High-Signal Production Failure Modes -->
+      <div class="layer">
+        <p class="label">Production Postmortem Patterns</p>
+        <h3 class="subhead">Four High-Signal Failure Modes</h3>
+        <div class="card-grid">
+          <div class="notice is-error">
+            <p class="label">01 · Silent Migration Corruption</p>
+            <p class="muted">Dropping legacy columns after coercing conflicts to <code class="inline">NULL</code>, or omitting default parent rows so existing insert paths fail FK checks.</p>
+          </div>
+          <div class="notice is-error">
+            <p class="label">02 · Benchmarking Without Baseline</p>
+            <p class="muted">Adding an index before capturing V1's <code class="inline">EXPLAIN (ANALYZE, BUFFERS)</code> conflates index impact with SQL rewrite impact.</p>
+          </div>
+          <div class="notice is-error">
+            <p class="label">03 · N+1 &amp; Unbounded IN Lists</p>
+            <p class="muted">Fast 1 ms queries repeated 100× per HTTP call, or loading entire unpaginated child tables into JVM memory.</p>
+          </div>
+          <div class="notice is-error">
+            <p class="label">04 · Stale Cache Stamped as Fresh</p>
+            <p class="muted">Serving cached or materialized totals without surfacing their actual computation snapshot timestamp.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flashcards & Quiz -->
+      <div class="split-grid">
+        <!-- Flashcards -->
+        <div class="layer">
+          <div class="btn-row" style="justify-content: space-between; width: 100%; align-items: center;">
+            <div>
+              <p class="label">Active Recall Flashcards</p>
+              <h3 class="subhead" id="fc-counter">Card 1 of 8</h3>
+            </div>
+            <span class="tag tag-ok" id="fc-mastered-tag">0 Mastered</span>
+          </div>
+
+          <button type="button" class="flashcard-stage" id="flashcard-btn" onclick="flipFlashcard()">
+            <div>
+              <span class="tag" id="fc-topic">Normalization</span>
+              <p class="flashcard-q" id="fc-question" style="margin-top: var(--space-sm);"></p>
+            </div>
+            <p class="flashcard-a" id="fc-answer" hidden></p>
+            <p class="label" id="fc-hint">Click card to reveal answer</p>
+          </button>
+
+          <div class="btn-row">
+            <button type="button" class="btn btn-ghost" onclick="prevFlashcard()">Previous</button>
+            <button type="button" class="btn btn-primary" onclick="markFlashcardMastered()">Mark Reviewed</button>
+            <button type="button" class="btn btn-ghost" onclick="nextFlashcard()">Next</button>
+          </div>
+        </div>
+
+        <!-- Quiz -->
+        <div class="layer">
+          <div class="btn-row" style="justify-content: space-between; width: 100%; align-items: center;">
+            <div>
+              <p class="label">Diagnostic Self-Check Quiz</p>
+              <h3 class="subhead" id="quiz-title">Question 1 of 8</h3>
+            </div>
+            <span class="tag" id="quiz-score-tag">Score: 0 / 8</span>
+          </div>
+
+          <div class="layer-nested">
+            <p class="subhead" id="quiz-q-text" style="font-size: 1.0625rem;"></p>
+            <div class="quiz-options" id="quiz-options"></div>
+            <div class="notice" id="quiz-feedback" hidden>
+              <p class="label" id="quiz-fb-label"></p>
+              <p class="muted" id="quiz-fb-text"></p>
+            </div>
+          </div>
+
+          <div class="btn-row" style="justify-content: space-between; width: 100%;">
+            <div class="btn-row">
+              <button type="button" class="btn btn-ghost" onclick="prevQuiz()">Previous</button>
+              <button type="button" class="btn btn-primary" onclick="nextQuiz()">Next Question</button>
+            </div>
+            <button type="button" class="btn btn-secondary" id="reset-all-btn" onclick="resetProgress(this)">Reset All Progress</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SOURCES -->
+    <footer class="footer-sources">
+      <p class="label">Source Grounding</p>
+      <p class="muted">
+        Content synthesized strictly from: VickyBytes ("Database Normalization Explained: 1NF, 2NF, 3NF, and BCNF"), Zeeshan Adil ("Diagnosing Slow PostgreSQL Queries with EXPLAIN ANALYZE and BUFFERS"), Tiger Data ("Guide to PostgreSQL Database Design"), DEV Community ("Horizontal Scaling PostgreSQL with Citus" &amp; "Optimizing Materialized View Refresh to Minimize Locks in PostgreSQL"), SummationWorks ("Postgres Indexing Strategies for Faster Queries"), Stacksync ("PostgreSQL Keyset Pagination vs Offset"), TheDBAdmin ("Redis Caching with PostgreSQL"), IJETCSIT ("PostgreSQL Table Partitioning Strategies"), and the Local Reference Brief on Database Design &amp; SQL Optimization.
+      </p>
+    </footer>
+
+  </main>
+
+  <api-shim></api-shim>
+  <script>
+    const normSteps = [
+      {
+        title: `0NF: Repeating List Inside a Cell`,
+        desc: `Storing comma-separated course IDs in one cell (or fixed columns Course1, Course2, Course3) breaks atomicity. You cannot join, index, or count courses without brittle string splitting, and fixed columns cap students while wasting NULLs.`,
+        fds: `No clean key — Courses holds a multi-valued list ("DB101, OS201").`,
+        tables: [
+          {
+            name: `students_unnormalized`,
+            cols: [`StudentID (PK)`, `StudentName`, `Courses`],
+            rows: [
+              [`1`, `Asha`, `DB101, OS201`],
+              [`2`, `Ravi`, `DB101`]
+            ]
+          }
+        ],
+        anomalies: {
+          insert: { ok: false, text: `BLOCKED: Cannot register new course NW301 until a student enrolls, because rows are keyed by StudentID.` },
+          update: { ok: false, text: `CORRUPTION RISK: Instructor metadata isn't even modeled cleanly; repeating strings across cells drift silently.` },
+          delete: { ok: false, text: `LOSSY: Removing a student wipes out any course metadata coupled to their row.` }
+        }
+      },
+      {
+        title: `1NF: Atomic Cells & Composite Primary Key`,
+        desc: `Each cell holds one atomic value and every row is uniquely identified by (StudentID, CourseID). Searching and joining now work, but non-key attributes repeat across rows.`,
+        fds: `StudentID → StudentName (partial) | CourseID → CourseTitle, Instructor (partial) | (StudentID, CourseID) → Grade (full)`,
+        tables: [
+          {
+            name: `enrollments_1nf (PK: StudentID, CourseID)`,
+            cols: [`StudentID`, `CourseID`, `StudentName`, `CourseTitle`, `Instructor`, `Grade`],
+            rows: [
+              [`1`, `DB101`, `Asha`, `Databases`, `Dr. Mehta`, `A`],
+              [`1`, `OS201`, `Asha`, `Operating Systems`, `Dr. Rao`, `B`],
+              [`2`, `DB101`, `Ravi`, `Databases`, `Dr. Mehta`, `B`]
+            ]
+          }
+        ],
+        anomalies: {
+          insert: { ok: false, text: `INSERT ANOMALY: Cannot insert course NW301 with 0 students because StudentID is part of the composite primary key (cannot be NULL).` },
+          update: { ok: false, text: `UPDATE ANOMALY: Replacing Dr. Mehta with Dr. Sharma for DB101 requires updating 2 rows; missing row 3 creates contradictory facts.` },
+          delete: { ok: false, text: `DELETE ANOMALY: If Ravi is the sole student in DB101 and drops, deleting his row erases DB101's title and instructor.` }
+        }
+      },
+      {
+        title: `2NF: Eliminate Partial Dependencies`,
+        desc: `Every non-prime column must depend on the ENTIRE composite key. Move StudentName to students and CourseTitle/Instructor details to courses. Shortcut: any 1NF table with a single-column PK is automatically in 2NF.`,
+        fds: `students: StudentID → StudentName | courses: CourseID → CourseTitle, InstructorID → InstructorName, Email | enrollments: (StudentID, CourseID) → Grade`,
+        tables: [
+          {
+            name: `students`,
+            cols: [`student_id (PK)`, `student_name`],
+            rows: [[`1`, `Asha`], [`2`, `Ravi`]]
+          },
+          {
+            name: `courses (Still has transitive dependency!)`,
+            cols: [`course_id (PK)`, `course_title`, `instructor_id`, `instructor_name`, `instructor_email`],
+            rows: [
+              [`DB101`, `Databases`, `7`, `Dr. Mehta`, `mehta@uni.edu`],
+              [`DB102`, `Advanced SQL`, `7`, `Dr. Mehta`, `mehta@uni.edu`],
+              [`OS201`, `Operating Systems`, `9`, `Dr. Rao`, `rao@uni.edu`]
+            ]
+          },
+          {
+            name: `enrollments`,
+            cols: [`student_id (FK)`, `course_id (FK)`, `grade`],
+            rows: [[`1`, `DB101`, `A`], [`1`, `OS201`, `B`], [`2`, `DB101`, `B`]]
+          }
+        ],
+        anomalies: {
+          insert: { ok: true, text: `SOLVED FOR COURSES: You can now insert NW301 into courses with 0 enrollments. (However, you still can't store a new instructor without a course!)` },
+          update: { ok: false, text: `TRANSITIVE UPDATE ANOMALY: Changing Dr. Mehta's email still requires editing both DB101 and DB102 rows in courses.` },
+          delete: { ok: true, text: `ENROLLMENT SAFE: Dropping Ravi's enrollment no longer deletes DB101. (Deleting DB101 & DB102 would still erase Dr. Mehta's email.)` }
+        }
+      },
+      {
+        title: `3NF: Eliminate Transitive Dependencies`,
+        desc: `"The key, the whole key, and nothing but the key." Extract instructor_name and instructor_email (which depended on non-key instructor_id) into instructors. 3NF is the practical target for most OLTP schemas.`,
+        fds: `instructors: instructor_id → instructor_name, instructor_email | courses: course_id → course_title, instructor_id`,
+        tables: [
+          {
+            name: `instructors`,
+            cols: [`instructor_id (PK)`, `instructor_name`, `instructor_email`],
+            rows: [[`7`, `Dr. Mehta`, `mehta@uni.edu`], [`9`, `Dr. Rao`, `rao@uni.edu`]]
+          },
+          {
+            name: `courses`,
+            cols: [`course_id (PK)`, `course_title`, `instructor_id (FK)`],
+            rows: [[`DB101`, `Databases`, `7`], [`DB102`, `Advanced SQL`, `7`], [`OS201`, `Operating Systems`, `9`]]
+          }
+        ],
+        anomalies: {
+          insert: { ok: true, text: `CLEAN INSERT: Courses and instructors can be inserted independently before any enrollments exist.` },
+          update: { ok: true, text: `SINGLE-ROW UPDATE: Dr. Mehta's email lives in 1 row in instructors—one update, zero contradictions.` },
+          delete: { ok: true, text: `CLEAN DELETE: Deleting an enrollment or course leaves instructor records intact.` }
+        }
+      },
+      {
+        title: `BCNF: Every Determinant Must Be a Superkey`,
+        desc: `3NF has one loophole: it permits X → Y if Y is a prime attribute (part of a candidate key). In tutoring(StudentID, Subject, Professor), each professor teaches 1 subject (Professor → Subject), so Professor is not a superkey even though Subject is prime. Decompose on Professor → Subject. Note: adding a surrogate id never removes an existing FD!`,
+        fds: `Before fix: (StudentID, Subject) → Professor AND Professor → Subject (violates BCNF). After fix: professor_subject(professor PK, subject) + student_professor(student_id, professor).`,
+        tables: [
+          {
+            name: `professor_subject (BCNF)`,
+            cols: [`professor (PK)`, `subject`],
+            rows: [[`Dr. Mehta`, `Databases`], [`Dr. Iyer`, `Networks`]]
+          },
+          {
+            name: `student_professor (BCNF)`,
+            cols: [`student_id (PK)`, `professor (PK, FK)`],
+            rows: [[`1`, `Dr. Mehta`], [`2`, `Dr. Mehta`], [`1`, `Dr. Iyer`], [`3`, `Dr. Iyer`]]
+          }
+        ],
+        anomalies: {
+          insert: { ok: true, text: `CLEAN INSERT: A professor's subject is recorded once in professor_subject before any student is assigned.` },
+          update: { ok: true, text: `NO CONTRADICTION: Changing Dr. Iyer's subject touches 1 row. Trade-off: lossless join, but enforcing "1 professor per subject per student" now needs a trigger or app logic.` },
+          delete: { ok: true, text: `CLEAN DELETE: Removing student 3 leaves Dr. Iyer → Networks intact.` }
+        }
+      }
+    ];
+
+    const migSteps = [
+      {
+        tag: `Phase 1 · Expand`,
+        title: `Add new target tables/columns & seed default parent rows`,
+        body: `Create the normalized destination table or nullable column alongside the legacy column. Seed any default parent rows upfront so existing insert paths from older application pods never fail foreign-key constraints.`,
+        guard: `Never add NOT NULL or drop legacy columns while old application versions are still running during a rolling deploy.`,
+        sql: `-- 1. Expand: create new parent table & nullable FK
+CREATE TABLE suppliers (
+  supplier_code VARCHAR(32) PRIMARY KEY,
+  supplier_name VARCHAR(120) NOT NULL,
+  supplier_email VARCHAR(150) NOT NULL
+);
+
+-- Seed default parent row so legacy insert paths don't fail FK checks
+INSERT INTO suppliers (supplier_code, supplier_name, supplier_email)
+VALUES ('UNKNOWN', 'Legacy Unassigned', 'ops@example.com')
+ON CONFLICT (supplier_code) DO NOTHING;
+
+ALTER TABLE products
+  ADD COLUMN supplier_code VARCHAR(32) REFERENCES suppliers(supplier_code);`
+      },
+      {
+        tag: `Phase 2 · Dual-Write & Backfill`,
+        title: `Coordinate concurrent writers and backfill in bounded batches`,
+        body: `Deploy application code that writes to both old and new structures within the same transaction. Backfill historical rows in small keyset-paginated batches to avoid long table locks or replication lag.`,
+        guard: `Coordinate concurrent writers during rolling deploys so an older pod updating legacy columns does not leave the new FK column stale.`,
+        sql: `-- 2. Java/SQL backfill in bounded batches (no full-table lock)
+INSERT INTO suppliers (supplier_code, supplier_name, supplier_email)
+SELECT DISTINCT supplier_code_legacy, supplier_name_legacy, supplier_email_legacy
+FROM products
+WHERE supplier_code_legacy IS NOT NULL
+ON CONFLICT (supplier_code) DO NOTHING;
+
+UPDATE products
+SET supplier_code = COALESCE(supplier_code_legacy, 'UNKNOWN')
+WHERE id > :last_id AND id <= :last_id + 1000
+  AND supplier_code IS NULL;`
+      },
+      {
+        tag: `Phase 3 · Conflict Audit`,
+        title: `Detect & resolve conflicting duplicate rows before contracting`,
+        body: `Before dropping duplicated columns (like supplier_email stored on every product row), query for rows where the same supplier_code carried two different emails or names. Resolve discrepancies explicitly with domain owners.`,
+        guard: `Never silently coerce conflicting source rows to NULL or overwrite them blindly—that causes silent data corruption.`,
+        sql: `-- 3. Conflict detection audit before dropping legacy columns
+SELECT supplier_code_legacy,
+       COUNT(DISTINCT supplier_email_legacy) AS email_variants,
+       ARRAY_AGG(DISTINCT supplier_email_legacy) AS emails
+FROM products
+GROUP BY supplier_code_legacy
+HAVING COUNT(DISTINCT supplier_email_legacy) > 1;
+
+-- Enforce NOT NULL safely once 0 conflicts & 0 NULLs remain
+ALTER TABLE products ALTER COLUMN supplier_code SET NOT NULL;`
+      },
+      {
+        tag: `Phase 4 · Contract & Index FKs`,
+        title: `Switch reads, drop legacy columns & explicitly index FK columns`,
+        body: `Once all pods read from the normalized schema and conflict checks pass, drop the legacy columns. Crucially, add an index on every referencing foreign-key column—PostgreSQL auto-indexes PKs and UNIQUEs, NOT FKs.`,
+        guard: `Omitting an index on products(supplier_code) causes sequential scans on JOINs and parent DELETE/UPDATE integrity checks.`,
+        sql: `-- 4. PostgreSQL does NOT auto-index referencing FK columns!
+CREATE INDEX CONCURRENTLY idx_products_supplier_code
+  ON products (supplier_code);
+
+-- Only after all writers/readers are migrated:
+ALTER TABLE products
+  DROP COLUMN supplier_name_legacy,
+  DROP COLUMN supplier_email_legacy;`
+      }
+    ];
+
+    const ladderSteps = [
+      {
+        title: `1 · Query & Index Tuning`,
+        when: `Always start here. Latency spikes on growing tables from missing indexes, non-sargable predicates, or N+1 queries.`,
+        solves: `Fixes 80%+ of slow queries with zero architectural complexity using EXPLAIN (ANALYZE, BUFFERS), composite B-trees, and keyset pagination.`,
+        next: `Escalate only when single-table bloat, VACUUM contention, or historical scans remain bounded by table size.`
+      },
+      {
+        title: `2 · Archival & Declarative Partitioning`,
+        when: `Tables reach tens/hundreds of millions of rows, queries filter on a consistent time/tenant key, or bulk deletes bloat tables.`,
+        solves: `Partition pruning skips irrelevant chunks; DETACH/DROP partition expires old data instantly without VACUUM storms; ~60% lower vacuum overhead.`,
+        next: `Escalate to replicas/caching when read QPS saturates single-node CPU or IOPS.`
+      },
+      {
+        title: `3 · Caching & Read Replicas`,
+        when: `Read traffic vastly outnumbers writes, or expensive analytical aggregations run repeatedly on slowly changing data.`,
+        solves: `Offloads read pressure via Redis cache-aside, PostgreSQL Materialized Views (REFRESH CONCURRENTLY), and streaming read replicas.`,
+        next: `Escalate when write throughput or dataset size exceeds one primary database's capacity.`
+      },
+      {
+        title: `4 · Vertical / Domain Split`,
+        when: `Distinct bounded contexts (e.g., billing vs. telemetry logs) compete for buffer cache, locks, and connection slots.`,
+        solves: `Isolates failure domains and write amplification by moving independent domains onto dedicated PostgreSQL clusters.`,
+        next: `Escalate to horizontal sharding only when a single domain table exceeds single-node storage or write ceiling.`
+      },
+      {
+        title: `5 · Horizontal Sharding (Citus / Multi-Node)`,
+        when: `Write throughput and active working set of a single domain outgrow the largest practical single PostgreSQL instance.`,
+        solves: `Distributes shards across worker nodes while co-locating parent/child tables on tenant_id for local worker JOINs and ACID guarantees.`,
+        next: `Tradeoff: introduces distributed coordination for global uniqueness, cross-shard transactions, global Top-K, and online resharding.`
+      }
+    ];
+
+    const explainPlans = {
+      bad: [
+        {
+          id: `n0`, indent: 0, warn: true,
+          title: `Limit (rows=100)`,
+          meta: `cost=12400.10..12400.35 rows=100 | actual time=184.20..184.45 rows=100 loops=1 | Buffers: shared hit=1420 read=6810 temp read=420 written=420`,
+          explain: `Parent node timings and Buffers are INCLUSIVE of all child nodes below. Notice total execution is 184.45 ms, and temp read/written=420 confirms a disk spill propagated up from the Sort node.`
+        },
+        {
+          id: `n1`, indent: 1, warn: true,
+          title: `Sort (Sort Key: o.created_at DESC)`,
+          meta: `Sort Method: external merge Disk: 3360kB | actual time=184.10..184.30 rows=100 loops=1 | Buffers: temp read=420 written=420`,
+          explain: `Sort Method: external merge Disk means the sort exceeded work_mem and spilled 3360 kB to temporary files. Raising work_mem globally is risky (multiplied per node & worker); test SET work_mem = '64MB' per session first, or eliminate the sort with a matching index.`
+        },
+        {
+          id: `n2`, indent: 2, warn: true,
+          title: `Nested Loop`,
+          meta: `actual time=0.25..152.80 rows=96000 loops=1`,
+          explain: `Joins 96,000 rows from orders against customers. Because the outer estimate was 900 rows instead of 96,000, the planner picked a Nested Loop instead of a Hash Join!`
+        },
+        {
+          id: `n3`, indent: 3, warn: true,
+          title: `Index Scan using idx_orders_status_created on orders o`,
+          meta: `cost=0.43..8120.50 rows=900 width=24 | actual time=0.05..41.20 rows=96000 loops=1 | Buffers: shared hit=1200 read=5300`,
+          explain: `CRITICAL GAP: Planner estimated rows=900, but actual rows=96,000 (106x off!). Cause: stale stats or correlated columns (status + created_at). shared hit=1200 came from PG cache; read=5300 asked the OS (may still be OS page cache, not necessarily disk).`
+        },
+        {
+          id: `n4`, indent: 3, warn: true,
+          title: `Index Scan on customers c (or SubPlan)`,
+          meta: `actual time=0.001..0.001 rows=1 loops=96000 | Rows Removed by Filter: 0`,
+          explain: `LOOPS MULTIPLIER TRAP: 0.001 ms looks tiny, but loops=96000 multiplies it to ~96 ms! Correlated SubPlans (e.g., per-row COUNT/MAX on bids) trigger this exact pattern.`
+        }
+      ],
+      good: [
+        {
+          id: `g0`, indent: 0, good: true,
+          title: `Limit (rows=100)`,
+          meta: `cost=0.43..48.10 rows=100 | actual time=0.08..1.12 rows=100 loops=1 | Buffers: shared hit=94`,
+          explain: `Total latency dropped from 184.45 ms to 1.12 ms with zero disk spills and zero temp buffers. Only 94 cached pages touched.`
+        },
+        {
+          id: `g1`, indent: 1, good: true,
+          title: `Nested Loop (Hash / Index Join on 100 rows only)`,
+          meta: `actual time=0.07..1.08 rows=100 loops=1 | Buffers: shared hit=94`,
+          explain: `Because the index returned rows already ordered by created_at DESC, Limit stopped after reading 100 rows—so the inner join ran only 100 loops instead of 96,000!`
+        },
+        {
+          id: `g2`, indent: 2, good: true,
+          title: `Index Only Scan using idx_orders_pending_created_cov on orders o`,
+          meta: `cost=0.43..320.00 rows=95200 | actual time=0.04..0.52 rows=100 loops=1 | Heap Fetches: 0 | Buffers: shared hit=42`,
+          explain: `Partial + Covering index (WHERE status = 'pending' INCLUDE (customer_id)) matches filter AND sort order. Heap Fetches: 0 proves the visibility map is clean thanks to autovacuum, so PostgreSQL never touched the heap table.`
+        },
+        {
+          id: `g3`, indent: 2, good: true,
+          title: `Index Scan using customers_pkey on customers c`,
+          meta: `actual time=0.004..0.004 rows=1 loops=100 | Buffers: shared hit=52`,
+          explain: `loops=100 × 0.004 ms = 0.4 ms total. Estimated rows (95,200) now match actual distribution after ANALYZE and CREATE STATISTICS.`
+        }
+      ]
+    };
+
+    const indexChecks = [
+      {
+        status: `Index-Only Scan (Optimal)`,
+        tagClass: `tag-ok`,
+        summary: `Satisfies leading equality (customer_id = 42), matches sort order (created_at DESC, id DESC) so no Sort node is needed, and INCLUDE (total_amount) enables an Index-Only Scan if VACUUM has updated the visibility map (Heap Fetches: 0).`,
+        sql: `-- Uses idx_orders_cust_created completely:
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id, created_at, total_amount
+FROM orders
+WHERE customer_id = 42
+ORDER BY created_at DESC, id DESC
+LIMIT 20;`
+      },
+      {
+        status: `Seq Scan / Index Bypassed`,
+        tagClass: `tag-bad`,
+        summary: `Violates the leftmost-prefix rule: customer_id is the leading column of (customer_id, created_at DESC, id DESC), so a query filtering only on created_at cannot seek efficiently into the B-tree. Add a dedicated index on (created_at) if frequent.`,
+        sql: `-- Cannot use idx_orders_cust_created efficiently (customer_id missing):
+SELECT * FROM orders
+WHERE created_at >= '2026-06-10T00:00Z'
+  AND created_at <  '2026-06-11T00:00Z';`
+      },
+      {
+        status: `Non-Sargable Predicate`,
+        tagClass: `tag-bad`,
+        summary: `Wrapping created_at in DATE(created_at) hides the raw column value from the B-tree. Rewrite as a half-open UTC range (>= start AND < next_day), or create an expression index with an explicit immutable timezone.`,
+        sql: `-- Bad: disables plain index on created_at
+WHERE DATE(created_at) = '2026-06-10'
+
+-- Good: Sargable half-open range
+WHERE created_at >= '2026-06-10T00:00Z'
+  AND created_at <  '2026-06-11T00:00Z'`
+      },
+      {
+        status: `Use a Partial Index`,
+        tagClass: `tag-warn`,
+        summary: `If 'pending' orders are only ~5% of the table, indexing all rows wastes space and slows writes. A partial index WHERE status = 'pending' stays tiny, fast, and cheap to maintain—just ensure queries repeat status = 'pending'.`,
+        sql: `CREATE INDEX CONCURRENTLY idx_orders_pending
+  ON orders (created_at)
+  WHERE status = 'pending';`
+      },
+      {
+        status: `Use an Expression Index`,
+        tagClass: `tag-warn`,
+        summary: `A plain index on email is ignored by WHERE lower(email) = ... because the transformed string is not stored in the index. Build an expression index on lower(email).`,
+        sql: `CREATE INDEX CONCURRENTLY idx_users_lower_email
+  ON users (lower(email));
+
+SELECT id FROM users WHERE lower(email) = 'asha@uni.edu';`
+      },
+      {
+        status: `B-Tree Fails Leading Wildcard`,
+        tagClass: `tag-bad`,
+        summary: `Regular B-trees only support prefix matches (LIKE 'abc%' with text_pattern_ops or C collation). For '%@example.com', use a GIN trigram index (pg_trgm) or index reverse(email) with text_pattern_ops.`,
+        sql: `-- Option 1: pg_trgm GIN index for arbitrary substring search
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_email_trgm ON users USING gin (email gin_trgm_ops);
+
+-- Option 2: reversed suffix B-tree
+CREATE INDEX idx_email_rev ON users (reverse(email) text_pattern_ops);
+-- Query: WHERE reverse(email) LIKE 'moc.liamg@%';`
+      }
+    ];
+
+    const prodPatterns = [
+      {
+        title: `EXISTS (Semi-Join) vs. JOIN ... DISTINCT`,
+        why: `Joining parent orders to child invoices multiplies parent rows for every matching invoice, forcing PostgreSQL to run an expensive Sort/Hash Distinct to undo the duplication. EXISTS stops scanning child rows on the very first match.`,
+        before: `-- Anti-pattern: duplicates parents, then deduplicates
+SELECT DISTINCT p.id, p.created_at
+FROM purchase_order p
+JOIN order_invoice i ON i.order_id = p.id
+WHERE p.status = 'OPEN';`,
+        after: `-- Fix: semi-join short-circuits on first match
+SELECT p.id, p.created_at
+FROM purchase_order p
+WHERE p.status = 'OPEN'
+  AND EXISTS (
+    SELECT 1 FROM order_invoice i
+    WHERE i.order_id = p.id
+  );`
+      },
+      {
+        title: `NOT EXISTS vs. Nullable NOT IN (3-Valued Logic Trap)`,
+        why: `In SQL three-valued logic, x NOT IN (1, NULL) evaluates to UNKNOWN—never TRUE. If even one row in the subquery has a NULL column, NOT IN returns zero rows silently. NOT EXISTS handles NULLs safely.`,
+        before: `-- Bug: returns 0 rows if any cancelled_log.order_id is NULL!
+SELECT p.id
+FROM purchase_order p
+WHERE p.id NOT IN (
+  SELECT c.order_id FROM cancelled_log c
+);`,
+        after: `-- Safe: immune to NULL values in cancelled_log.order_id
+SELECT p.id
+FROM purchase_order p
+WHERE NOT EXISTS (
+  SELECT 1 FROM cancelled_log c
+  WHERE c.order_id = p.id
+);`
+      },
+      {
+        title: `Pre-Aggregate at Child Grain to Prevent Join Fan-Out`,
+        why: `Joining two independent 1:N child tables (e.g., 3 charges × 4 tags = 12 rows per order) multiplies rows and inflates SUM/COUNT. Similarly, correlated subqueries run once per outer row (500 vehicles × 2 subqueries = 1,000 SubPlan executions). Pre-aggregate each child at its own grain before joining (up to 13x speedup in production bidding queries).`,
+        before: `-- Bug: charges x tags fan-out inflates SUM(c.amount) by tag count!
+SELECT o.id,
+       SUM(c.amount) AS total_charges,
+       COUNT(t.tag)  AS tag_count
+FROM purchase_order o
+LEFT JOIN order_charge c ON c.order_id = o.id
+LEFT JOIN order_tag t    ON t.order_id = o.id
+GROUP BY o.id;`,
+        after: `-- Fix: aggregate each child at its own grain before joining
+WITH charges AS (
+  SELECT order_id, SUM(amount) AS total_charges
+  FROM order_charge GROUP BY order_id
+),
+tags AS (
+  SELECT order_id, COUNT(*) AS tag_count
+  FROM order_tag GROUP BY order_id
+)
+SELECT o.id,
+       COALESCE(c.total_charges, 0) AS total_charges,
+       COALESCE(t.tag_count, 0)     AS tag_count
+FROM purchase_order o
+LEFT JOIN charges c ON c.order_id = o.id
+LEFT JOIN tags t    ON t.order_id = o.id;`
+      },
+      {
+        title: `Keyset (Cursor) Pagination vs. OFFSET (Mixed DESC / ASC)`,
+        why: `OFFSET 1000000 still scans and discards 1,000,000 index entries (87 ms vs. <1 ms) and drifts when rows are inserted or deleted. For mixed sort directions (created_at DESC, id ASC), you cannot use tuple comparison (<); expand explicitly and fetch limit + 1 in JdbcTemplate for hasNext.`,
+        before: `-- Slow O(n) + drifts on concurrent inserts/deletes
+SELECT id, product_id, created_at
+FROM purchase_order
+ORDER BY created_at DESC, id ASC
+LIMIT 20 OFFSET 100000;`,
+        after: `// Java JdbcTemplate: fetch limit + 1 for hasNext with mixed-direction keyset
+List<OrderRow> page = jdbc.query("""
+    SELECT id, product_id, created_at FROM purchase_order
+    WHERE (:ts IS NULL OR created_at < :ts OR (created_at = :ts AND id > :id))
+    ORDER BY created_at DESC, id ASC
+    LIMIT :fetchSize
+    """, params, orderRowMapper);
+// Backing index: CREATE INDEX idx_po_cur ON purchase_order (created_at DESC, id ASC);`
+      },
+      {
+        title: `Bounded Batch Enrichment vs. N+1 Round Trips`,
+        why: `Running 1 fast 1 ms query inside a loop for 100 parent rows creates 100 network round trips per HTTP request; conversely, loading an entire child table into JVM memory blows heap. Fetch a bounded parent page, then issue one batch lookup with = ANY(?).`,
+        before: `// Anti-pattern: N+1 database round trips inside a loop
+for (OrderRow row : page) {
+    boolean inv = jdbc.queryForObject(
+        "SELECT EXISTS(SELECT 1 FROM order_invoice WHERE order_id = ?)",
+        Boolean.class, row.id());
+    row.setInvoiced(inv);
+}`,
+        after: `// Fix: 1 bounded batch lookup for the current page's IDs
+Set<UUID> invoiced = new HashSet<>(jdbc.queryForList(
+    "SELECT DISTINCT order_id FROM order_invoice WHERE order_id = ANY(?)",
+    UUID.class, conn.createArrayOf("uuid", pageIds)));
+// Merge into parent rows in memory while preserving parent sort order`
+      }
+    ];
+
+    const pageDepthData = [
+      { label: `Page 1 (OFFSET 0)`, offsetMs: `0.47 ms`, rowsDiscarded: `0 rows discarded`, keysetMs: `0.45 ms` },
+      { label: `Page 50 (OFFSET 1,000)`, offsetMs: `1.00 ms`, rowsDiscarded: `1,000 rows discarded`, keysetMs: `0.46 ms` },
+      { label: `Page 5,000 (OFFSET 100,000)`, offsetMs: `14.80 ms`, rowsDiscarded: `100,000 rows discarded`, keysetMs: `0.48 ms` },
+      { label: `Page 50,000 (OFFSET 1,000,000)`, offsetMs: `87.00 ms`, rowsDiscarded: `1,000,000 rows discarded`, keysetMs: `0.49 ms` }
+    ];
+
+    const flashcardsData = [
+      {
+        topic: `Normalization`,
+        q: `What distinguishes BCNF from 3NF, and does adding a surrogate id fix BCNF?`,
+        a: `3NF allows X → Y if Y is a prime attribute (part of a candidate key). BCNF requires X to be a superkey for EVERY non-trivial dependency. Adding a surrogate id never removes an existing functional dependency.`
+      },
+      {
+        topic: `Fact Ownership`,
+        q: `Why is storing unit_price_at_sale on order_items NOT denormalization?`,
+        a: `It records an immutable historical snapshot of what was paid on that date, whereas products.list_price is today's mutable catalogue price—two separate facts.`
+      },
+      {
+        topic: `Constraints & NULL`,
+        q: `Why does CHECK (qty > 0) still allow NULL values in PostgreSQL?`,
+        a: `In SQL three-valued logic, NULL > 0 evaluates to UNKNOWN, and CHECK constraints only reject FALSE. Always add explicit NOT NULL.`
+      },
+      {
+        topic: `Partitioning`,
+        q: `What must every PRIMARY KEY or UNIQUE constraint include on a partitioned PostgreSQL table?`,
+        a: `It must include all partition-key columns. Otherwise PostgreSQL cannot guarantee uniqueness across separate partitions locally.`
+      },
+      {
+        topic: `EXPLAIN Reading`,
+        q: `How do you interpret parent node actual time and Buffers in EXPLAIN (ANALYZE, BUFFERS)?`,
+        a: `Parent timings and Buffers are INCLUSIVE of all child nodes beneath them—never sum the whole tree. Also multiply per-loop time/rows by loops.`
+      },
+      {
+        topic: `Sargability`,
+        q: `How do you make WHERE DATE(created_at) = '2026-06-10' use a B-tree index on created_at?`,
+        a: `Rewrite as a half-open range: created_at >= '2026-06-10T00:00Z' AND created_at < '2026-06-11T00:00Z' (or add an immutable expression index).`
+      },
+      {
+        topic: `Keyset Pagination`,
+        q: `How do you write a keyset WHERE clause for mixed sort directions (created_at DESC, id ASC)?`,
+        a: `Expand explicitly instead of using a tuple comparison: (created_at < :ts) OR (created_at = :ts AND id > :id), backed by an index on (created_at DESC, id ASC).`
+      },
+      {
+        topic: `Materialized Views`,
+        q: `What are the two prerequisites for REFRESH MATERIALIZED VIEW CONCURRENTLY in PostgreSQL?`,
+        a: `The materialized view must already be populated (WITH DATA), and it must have at least one UNIQUE index on plain columns (no WHERE clause).`
+      }
+    ];
+
+    const quizData = [
+      {
+        q: `A tutoring table (StudentID, Subject, Professor) has candidate keys (StudentID, Subject) and (StudentID, Professor), plus Professor → Subject. Which normal form does it pass and fail?`,
+        opts: [
+          `Passes 2NF, fails 3NF because Subject is non-prime.`,
+          `Passes 3NF (Subject is prime), fails BCNF because Professor is not a superkey.`,
+          `Fails 1NF because a student can study multiple subjects.`,
+          `Passes BCNF once you add a surrogate id column.`
+        ],
+        correct: 1,
+        rationale: `Because Subject belongs to a candidate key (prime attribute), 3NF permits Professor → Subject. BCNF rejects it because the determinant Professor is not a superkey—and a surrogate id does not change existing FDs.`
+      },
+      {
+        q: `During an expand/contract migration removing a duplicated legacy column, what happens if PostgreSQL creates a foreign key referencing a new parent table without extra DDL?`,
+        opts: [
+          `PostgreSQL automatically creates a B-tree index on the referencing FK column.`,
+          `PostgreSQL does NOT auto-index referencing FK columns; you should add one explicitly.`,
+          `Foreign keys require the child column to be a PRIMARY KEY.`,
+          `Conflicting legacy rows are automatically merged without data loss.`
+        ],
+        correct: 1,
+        rationale: `PostgreSQL automatically indexes PK and UNIQUE constraints, not referencing FK columns. Also always audit and resolve conflicting source rows before dropping duplicated columns.`
+      },
+      {
+        q: `When should a team introduce multi-node horizontal sharding (e.g., Citus)?`,
+        opts: [
+          `Before adding composite indexes, to avoid schema migrations later.`,
+          `Immediately when a table hits 100,000 rows.`,
+          `Only after exhausting query/index tuning, archival/declarative partitioning, caching/replicas, and domain splits.`,
+          `Whenever a query needs a global ORDER BY ... LIMIT 10.`
+        ],
+        correct: 2,
+        rationale: `Scale the measured bottleneck in order. Sharding adds distributed complexity for global uniqueness, cross-shard transactions, global Top-K merge-sorts, and online resharding.`
+      },
+      {
+        q: `In EXPLAIN (ANALYZE, BUFFERS), a node shows cost=0.43..8120.50 rows=900 and actual time=0.05..41.20 rows=96000 loops=1. What is the primary diagnostic signal?`,
+        opts: [
+          `cost=8120.50 means the node took 8.12 seconds.`,
+          `The 106x gap between estimated (900) and actual (96,000) rows signals stale or correlated statistics.`,
+          `loops=1 means the query ran sequentially without any index.`,
+          `actual time=41.20 must be added to every child node's time to find total runtime.`
+        ],
+        correct: 1,
+        rationale: `cost is in planner units (not ms), and parent timings are inclusive. A massive estimated-vs-actual row mismatch means ANALYZE, higher column STATISTICS targets, or extended CREATE STATISTICS (dependencies) is needed.`
+      },
+      {
+        q: `You have a composite B-tree index on (customer_id, created_at DESC, id DESC). Which query CANNOT use it effectively?`,
+        opts: [
+          `WHERE customer_id = 42 ORDER BY created_at DESC, id DESC LIMIT 20`,
+          `WHERE customer_id = 42 AND created_at >= '2026-06-01T00:00Z'`,
+          `WHERE created_at >= '2026-06-10T00:00Z' AND created_at < '2026-06-11T00:00Z'`,
+          `WHERE customer_id = 42`
+        ],
+        correct: 2,
+        rationale: `Filtering on created_at alone omits the leading column customer_id, violating the B-tree leftmost-prefix rule.`
+      },
+      {
+        q: `Why should you prefer NOT EXISTS over NOT IN (SELECT col FROM sub) when col might contain NULL?`,
+        opts: [
+          `NOT IN cannot use any index in PostgreSQL.`,
+          `In SQL three-valued logic, x NOT IN (1, NULL) evaluates to UNKNOWN, causing 0 rows to return.`,
+          `NOT EXISTS automatically converts NULLs into empty strings.`,
+          `NOT IN performs an implicit CROSS JOIN.`
+        ],
+        correct: 1,
+        rationale: `Because x != NULL yields UNKNOWN, NOT IN returns UNKNOWN for every row whenever the subquery yields a single NULL. NOT EXISTS tests row existence and is immune.`
+      },
+      {
+        q: `Why does joining purchase_order to both 1:N order_charge and 1:N order_tag before calling SUM(charge.amount) produce wrong totals?`,
+        opts: [
+          `PostgreSQL LEFT JOIN drops rows where tags are NULL.`,
+          `SUM() ignores rows with duplicate order_id values.`,
+          `Join fan-out multiplies each charge row by the number of tags on that order, inflating SUM.`,
+          `GROUP BY o.id cannot aggregate across two LEFT JOINs.`
+        ],
+        correct: 2,
+        rationale: `Joining two independent 1:N child tables produces a Cartesian product at the order grain (charges × tags). Pre-aggregate each child at its own grain first.`
+      },
+      {
+        q: `What happens if you run REFRESH MATERIALIZED VIEW (non-concurrent) on a high-dependency view that depends on 90% of other views?`,
+        opts: [
+          `PostgreSQL acquires exclusive locks on dependencies, stalling queries, exhausting connection slots, and risking OOM crashes.`,
+          `PostgreSQL silently upgrades it to CONCURRENTLY.`,
+          `It only locks the Cache DB and never affects Trans DB.`,
+          `It skips rows modified in the last 24 hours.`
+        ],
+        correct: 0,
+        rationale: `Non-concurrent refreshes acquire exclusive locks on base relations, causing lock queues and connection/RAM spikes. Use REFRESH MATERIALIZED VIEW CONCURRENTLY (with an already-populated view and UNIQUE index).`
+      }
+    ];
+
+    /* Persistent application state */
+    let appState = {
+      normStep: 0,
+      migStep: 0,
+      ladderStep: 0,
+      explainMode: `bad`,
+      explainNodeIdx: 3,
+      patternIdx: 0,
+      driftSimulated: false,
+      fcIndex: 0,
+      fcFlipped: false,
+      fcMastered: [],
+      quizIndex: 0,
+      quizAnswers: {}
+    };
+
+    async function persistState() {
+      try {
+        if (window.notebookAppApi && typeof window.notebookAppApi.setAppState === `function`) {
+          await window.notebookAppApi.setAppState(appState);
+        }
+      } catch (e) {
+        /* Ignore storage errors outside sandbox */
+      }
+    }
+
+    function updateHeaderProgress() {
+      const answeredCount = Object.keys(appState.quizAnswers).length;
+      const correctCount = Object.keys(appState.quizAnswers).filter(k => {
+        const idx = Number(k);
+        return quizData[idx] && appState.quizAnswers[k] === quizData[idx].correct;
+      }).length;
+      const hdrProgress = document.getElementById(`hdr-progress`);
+      if (hdrProgress) hdrProgress.textContent = `${answeredCount} / ${quizData.length} Quiz (${correctCount} ok)`;
+      const hdrCards = document.getElementById(`hdr-cards`);
+      if (hdrCards) hdrCards.textContent = `${appState.fcMastered.length} / ${flashcardsData.length} Flashcards reviewed`;
+    }
+
+    /* Section 1: Normalization */
+    function setNormStep(idx) {
+      appState.normStep = idx;
+      for (let i = 0; i < 5; i++) {
+        const b = document.getElementById(`nf-btn-${i}`);
+        if (b) b.classList.toggle(`is-active`, i === idx);
+      }
+      const step = normSteps[idx];
+      if (!step) return;
+
+      const titleEl = document.getElementById(`nf-title`);
+      const descEl = document.getElementById(`nf-desc`);
+      const fdsEl = document.getElementById(`nf-fds`);
+      const tablesEl = document.getElementById(`nf-tables`);
+      const outEl = document.getElementById(`anomaly-output`);
+
+      if (titleEl) titleEl.textContent = step.title;
+      if (descEl) descEl.textContent = step.desc;
+      if (fdsEl) fdsEl.textContent = step.fds;
+      if (outEl) {
+        outEl.className = `notice`;
+        outEl.innerHTML = `<p class="label">Anomaly Probe</p><p class="muted">Click an operation above to test how this schema handles inserts, updates, and deletes.</p>`;
+      }
+
+      if (tablesEl) {
+        tablesEl.innerHTML = step.tables.map(t => {
+          const ths = t.cols.map(c => `<th>${c}</th>`).join(``);
+          const trs = t.rows.map(r => `<tr>${r.map(v => `<td>${v}</td>`).join(``)}</tr>`).join(``);
+          return `
+            <div class="schema-card">
+              <p class="label">${t.name}</p>
+              <div class="table-wrap">
+                <table class="carbon-table">
+                  <thead><tr>${ths}</tr></thead>
+                  <tbody>${trs}</tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        }).join(``);
+      }
+      persistState();
+    }
+
+    function runAnomalyDemo(kind) {
+      const step = normSteps[appState.normStep];
+      const outEl = document.getElementById(`anomaly-output`);
+      if (!step || !outEl) return;
+      const res = step.anomalies[kind];
+      if (!res) return;
+      outEl.className = res.ok ? `notice is-positive` : `notice is-error`;
+      outEl.innerHTML = `
+        <p class="label">${res.ok ? `Safe Behavior` : `Anomaly Triggered`}</p>
+        <p class="muted">${res.text}</p>
+      `;
+    }
+
+    /* Section 1: Expand / Contract Migration */
+    function setMigStep(idx) {
+      appState.migStep = idx;
+      for (let i = 0; i < 4; i++) {
+        const b = document.getElementById(`mig-btn-${i}`);
+        if (b) b.classList.toggle(`is-active`, i === idx);
+      }
+      const m = migSteps[idx];
+      if (!m) return;
+      const tag = document.getElementById(`mig-tag`);
+      const title = document.getElementById(`mig-title`);
+      const body = document.getElementById(`mig-body`);
+      const guard = document.getElementById(`mig-guard`);
+      const sql = document.getElementById(`mig-sql`);
+      if (tag) tag.textContent = m.tag;
+      if (title) title.textContent = m.title;
+      if (body) body.textContent = m.body;
+      if (guard) guard.textContent = m.guard;
+      if (sql) sql.textContent = m.sql;
+      persistState();
+    }
+
+    /* Section 2: Scaling Ladder & Partitioning */
+    function setLadderStep(idx) {
+      appState.ladderStep = idx;
+      for (let i = 0; i < 5; i++) {
+        const b = document.getElementById(`lad-btn-${i}`);
+        if (b) b.classList.toggle(`is-active`, i === idx);
+      }
+      const s = ladderSteps[idx];
+      const box = document.getElementById(`ladder-detail`);
+      if (!s || !box) return;
+      box.innerHTML = `
+        <h3 class="subhead">${s.title}</h3>
+        <div class="card-grid">
+          <div class="notice">
+            <p class="label">When to Apply</p>
+            <p class="muted">${s.when}</p>
+          </div>
+          <div class="notice is-positive">
+            <p class="label">What It Solves</p>
+            <p class="muted">${s.solves}</p>
+          </div>
+          <div class="notice is-warning">
+            <p class="label">Next Bottleneck / Tradeoff</p>
+            <p class="muted">${s.next}</p>
+          </div>
+        </div>
+      `;
+      persistState();
+    }
+
+    function renderPartitionDiagram() {
+      const stratEl = document.getElementById(`part-strategy`);
+      const filtEl = document.getElementById(`part-filter`);
+      const svgWrap = document.getElementById(`part-svg-wrap`);
+      const sqlEl = document.getElementById(`part-sql`);
+      if (!stratEl || !filtEl || !svgWrap || !sqlEl) return;
+
+      const strat = stratEl.value;
+      const pruned = filtEl.value === `with`;
+
+      const defs = {
+        range: {
+          parent: `orders (PARTITION BY RANGE (order_date))`,
+          parts: [`2024 Q1`, `2024 Q2`, `2024 Q3`, `2024 Q4`],
+          activeIdx: 2,
+          sqlWith: `-- Prunes Q1, Q2, Q4; scans only txns_2024_q3
+SELECT * FROM transactions
+WHERE transaction_date >= '2024-08-01' AND transaction_date < '2024-09-01';`,
+          sqlWithout: `-- Missing partition key: planner scans ALL 4 partitions!
+SELECT * FROM transactions WHERE amount > 500;`
+        },
+        list: {
+          parent: `orders (PARTITION BY LIST (region))`,
+          parts: [`North America`, `Europe`, `APAC`, `LATAM`],
+          activeIdx: 1,
+          sqlWith: `-- Prunes 3 regions; scans only orders_europe
+SELECT * FROM orders WHERE region = 'Europe';`,
+          sqlWithout: `-- Missing region predicate: scans ALL 4 regional partitions!
+SELECT * FROM orders WHERE total_amount > 1000;`
+        },
+        hash: {
+          parent: `orders (PARTITION BY HASH (customer_id))`,
+          parts: [`MOD 4, REM 0`, `MOD 4, REM 1`, `MOD 4, REM 2`, `MOD 4, REM 3`],
+          activeIdx: 1,
+          sqlWith: `-- Hashes customer_id = 42 to single shard partition
+SELECT * FROM orders WHERE customer_id = 42;`,
+          sqlWithout: `-- Non-key range query fans out across ALL 4 hash partitions
+SELECT * FROM orders WHERE order_date >= '2024-08-01';`
+        }
+      };
+
+      const cfg = defs[strat];
+      sqlEl.textContent = pruned ? cfg.sqlWith : cfg.sqlWithout;
+
+      const boxes = cfg.parts.map((p, i) => {
+        const hit = !pruned || i === cfg.activeIdx;
+        const x = 20 + i * 108;
+        const fill = hit ? `var(--primary-container)` : `var(--surface-container)`;
+        const stroke = hit ? `var(--primary)` : `var(--outline-variant)`;
+        const status = hit ? `SCANNED` : `PRUNED`;
+        const statusFill = hit ? `var(--primary)` : `var(--on-surface-variant)`;
+        return `
+          <line x1="230" y1="54" x2="${x + 48}" y2="104" stroke="${stroke}" stroke-width="${hit ? 2 : 1}" stroke-dasharray="${hit ? `none` : `4 3`}"/>
+          <rect x="${x}" y="104" width="96" height="72" fill="${fill}" stroke="${stroke}" stroke-width="${hit ? 2 : 1}"/>
+          <text x="${x + 48}" y="132" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" font-weight="600" fill="var(--on-surface)">${p}</text>
+          <text x="${x + 48}" y="156" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" fill="${statusFill}">${status}</text>
+        `;
+      }).join(``);
+
+      svgWrap.innerHTML = `
+        <svg viewBox="0 0 460 192" width="100%" height="192" role="img" aria-label="Declarative partition pruning diagram">
+          <rect x="75" y="14" width="310" height="40" fill="var(--surface-container-high)" stroke="var(--on-surface)" stroke-width="1"/>
+          <text x="230" y="38" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="600" fill="var(--on-surface)">${cfg.parent}</text>
+          ${boxes}
+        </svg>
+        <p class="muted">${pruned ? `Partition pruning eliminated 75% of partitions before execution.` : `Predicate omitted the partition key, forcing PostgreSQL to scan every child partition.`}</p>
+      `;
+    }
+
+    /* Section 3: EXPLAIN & Indexes */
+    function setExplainMode(mode) {
+      appState.explainMode = mode;
+      appState.explainNodeIdx = mode === `bad` ? 3 : 2;
+      const bBad = document.getElementById(`exp-mode-bad`);
+      const bGood = document.getElementById(`exp-mode-good`);
+      if (bBad) bBad.classList.toggle(`is-active`, mode === `bad`);
+      if (bGood) bGood.classList.toggle(`is-active`, mode === `good`);
+      renderExplainTree();
+      persistState();
+    }
+
+    function selectExplainNode(idx) {
+      appState.explainNodeIdx = idx;
+      renderExplainTree();
+      persistState();
+    }
+
+    function renderExplainTree() {
+      const treeEl = document.getElementById(`explain-tree`);
+      const inspEl = document.getElementById(`explain-inspector`);
+      if (!treeEl || !inspEl) return;
+
+      const nodes = explainPlans[appState.explainMode] || explainPlans.bad;
+      const safeIdx = Math.min(appState.explainNodeIdx, nodes.length - 1);
+
+      treeEl.innerHTML = nodes.map((n, i) => {
+        const cls = [
+          `plan-node`,
+          n.warn ? `is-warn` : ``,
+          n.good ? `is-good` : ``,
+          i === safeIdx ? `is-selected` : ``
+        ].filter(Boolean).join(` `);
+        const marginLeft = n.indent * 18;
+        return `
+          <div style="padding-left: ${marginLeft}px;">
+            <button type="button" class="${cls}" onclick="selectExplainNode(${i})">
+              <div class="plan-node-head">
+                <span>${n.indent > 0 ? `→ ` : ``}${n.title}</span>
+                <span class="tag ${n.warn ? `tag-bad` : `tag-ok`}">${n.warn ? `Bottleneck` : `Healthy`}</span>
+              </div>
+              <span class="plan-node-meta">${n.meta}</span>
+            </button>
+          </div>
+        `;
+      }).join(``);
+
+      const sel = nodes[safeIdx];
+      inspEl.innerHTML = `
+        <p class="label">Selected Plan Node Decoder</p>
+        <h3 class="subhead">${sel.title}</h3>
+        <p class="muted" style="font-family: var(--font-label); font-size: 0.78rem;">${sel.meta}</p>
+        <div class="notice ${sel.warn ? `is-error` : `is-positive`}">
+          <p class="label">${sel.warn ? `Diagnosis &amp; Fix` : `Why This Plan Wins`}</p>
+          <p class="muted">${sel.explain}</p>
+        </div>
+      `;
+    }
+
+    function renderIndexCheck() {
+      const selEl = document.getElementById(`idx-query-select`);
+      const resEl = document.getElementById(`idx-result`);
+      if (!selEl || !resEl) return;
+      const idx = Number(selEl.value) || 0;
+      const item = indexChecks[idx];
+      if (!item) return;
+
+      resEl.innerHTML = `
+        <div class="layer-nested">
+          <div><span class="tag ${item.tagClass}">${item.status}</span></div>
+          <p class="muted">${item.summary}</p>
+        </div>
+        <pre class="code-block" id="idx-sql-pre"></pre>
+      `;
+      const idxPre = document.getElementById(`idx-sql-pre`);
+      if (idxPre) idxPre.textContent = item.sql;
+    }
+
+    /* Section 4: Patterns & Pagination */
+    function setPattern(idx) {
+      appState.patternIdx = idx;
+      for (let i = 0; i < 5; i++) {
+        const b = document.getElementById(`pat-btn-${i}`);
+        if (b) b.classList.toggle(`is-active`, i === idx);
+      }
+      const p = prodPatterns[idx];
+      const panel = document.getElementById(`pattern-panel`);
+      if (!p || !panel) return;
+      // Safely render plain text into code-block without HTML entity artifacts
+      panel.innerHTML = `
+        <div>
+          <h3 class="subhead">${p.title}</h3>
+          <p class="muted">${p.why}</p>
+        </div>
+        <div class="equal-grid">
+          <div style="display: grid; gap: var(--space-xs);">
+            <span class="tag tag-bad">Before · Anti-Pattern</span>
+            <pre class="code-block" id="pat-pre-before"></pre>
+          </div>
+          <div style="display: grid; gap: var(--space-xs);">
+            <span class="tag tag-ok">After · Production Fix</span>
+            <pre class="code-block" id="pat-pre-after"></pre>
+          </div>
+        </div>
+      `;
+      const preB = document.getElementById(`pat-pre-before`);
+      const preA = document.getElementById(`pat-pre-after`);
+      if (preB) preB.textContent = p.before;
+      if (preA) preA.textContent = p.after;
+      persistState();
+    }
+
+    function updatePaginationSim(val) {
+      const idx = Number(val) || 0;
+      const d = pageDepthData[idx] || pageDepthData[0];
+      const lbl = document.getElementById(`page-depth-label`);
+      const offMs = document.getElementById(`sim-offset-ms`);
+      const offRows = document.getElementById(`sim-offset-rows`);
+      const keyMs = document.getElementById(`sim-keyset-ms`);
+      if (lbl) lbl.textContent = d.label;
+      if (offMs) offMs.textContent = d.offsetMs;
+      if (offRows) offRows.textContent = d.rowsDiscarded;
+      if (keyMs) keyMs.textContent = d.keysetMs;
+    }
+
+    function toggleRowDrift() {
+      appState.driftSimulated = !appState.driftSimulated;
+      renderDriftTable();
+      persistState();
+    }
+
+    function renderDriftTable() {
+      const wrap = document.getElementById(`drift-table-wrap`);
+      const btn = document.getElementById(`drift-toggle-btn`);
+      if (!wrap || !btn) return;
+      const deleted = appState.driftSimulated;
+      btn.textContent = deleted ? `Restore Row #2` : `Simulate Deleting Row #2`;
+
+      const rows = deleted
+        ? [
+            { id: 1, name: `Order #101`, offPage: `Page 1 (seen)`, keyPage: `Page 1 (seen)` },
+            { id: 3, name: `Order #103`, offPage: `Page 1 (shifted!)`, keyPage: `Page 1 (seen)` },
+            { id: 4, name: `Order #104`, offPage: `Page 1 (shifted into P1 -> SKIPPED on P2!)`, keyPage: `Page 2 (cursor > #103: SAFE)` },
+            { id: 5, name: `Order #105`, offPage: `Page 2`, keyPage: `Page 2` }
+          ]
+        : [
+            { id: 1, name: `Order #101`, offPage: `Page 1`, keyPage: `Page 1` },
+            { id: 2, name: `Order #102`, offPage: `Page 1`, keyPage: `Page 1` },
+            { id: 3, name: `Order #103`, offPage: `Page 1`, keyPage: `Page 1` },
+            { id: 4, name: `Order #104`, offPage: `Page 2 (OFFSET 3)`, keyPage: `Page 2 (id > #103)` }
+          ];
+
+      wrap.innerHTML = `
+        <div class="table-wrap">
+          <table class="carbon-table">
+            <thead>
+              <tr><th>Row</th><th>OFFSET 3 Window</th><th>Keyset (id &gt; 3)</th></tr>
+            </thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr class="${deleted && r.id === 4 ? `is-highlighted` : ``}">
+                  <td><strong>${r.name}</strong></td>
+                  <td>${r.offPage}</td>
+                  <td>${r.keyPage}</td>
+                </tr>
+              `).join(``)}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    /* Section 5: Flashcards & Quiz */
+    function renderFlashcard() {
+      const idx = appState.fcIndex;
+      const card = flashcardsData[idx];
+      if (!card) return;
+
+      const counter = document.getElementById(`fc-counter`);
+      const masteredTag = document.getElementById(`fc-mastered-tag`);
+      const topicEl = document.getElementById(`fc-topic`);
+      const qEl = document.getElementById(`fc-question`);
+      const aEl = document.getElementById(`fc-answer`);
+      const hintEl = document.getElementById(`fc-hint`);
+
+      if (counter) counter.textContent = `Card ${idx + 1} of ${flashcardsData.length}`;
+      if (masteredTag) masteredTag.textContent = `${appState.fcMastered.length} Mastered`;
+      if (topicEl) topicEl.textContent = card.topic;
+      if (qEl) qEl.textContent = card.q;
+      if (aEl) {
+        aEl.textContent = card.a;
+        aEl.hidden = !appState.fcFlipped;
+      }
+      if (hintEl) hintEl.textContent = appState.fcFlipped ? `Click card to hide answer` : `Click card to reveal answer`;
+      updateHeaderProgress();
+    }
+
+    function flipFlashcard() {
+      appState.fcFlipped = !appState.fcFlipped;
+      renderFlashcard();
+      persistState();
+    }
+
+    function nextFlashcard() {
+      appState.fcIndex = (appState.fcIndex + 1) % flashcardsData.length;
+      appState.fcFlipped = false;
+      renderFlashcard();
+      persistState();
+    }
+
+    function prevFlashcard() {
+      appState.fcIndex = (appState.fcIndex - 1 + flashcardsData.length) % flashcardsData.length;
+      appState.fcFlipped = false;
+      renderFlashcard();
+      persistState();
+    }
+
+    function markFlashcardMastered() {
+      if (!appState.fcMastered.includes(appState.fcIndex)) {
+        appState.fcMastered.push(appState.fcIndex);
+      }
+      nextFlashcard();
+    }
+
+    function renderQuiz() {
+      const idx = appState.quizIndex;
+      const q = quizData[idx];
+      if (!q) return;
+
+      const titleEl = document.getElementById(`quiz-title`);
+      const scoreTag = document.getElementById(`quiz-score-tag`);
+      const qText = document.getElementById(`quiz-q-text`);
+      const optsEl = document.getElementById(`quiz-options`);
+      const fbEl = document.getElementById(`quiz-feedback`);
+      const fbLabel = document.getElementById(`quiz-fb-label`);
+      const fbText = document.getElementById(`quiz-fb-text`);
+
+      const picked = appState.quizAnswers[idx];
+      const hasPicked = typeof picked === `number`;
+
+      const totalCorrect = Object.keys(appState.quizAnswers).filter(k => {
+        const qi = Number(k);
+        return quizData[qi] && appState.quizAnswers[k] === quizData[qi].correct;
+      }).length;
+
+      if (titleEl) titleEl.textContent = `Question ${idx + 1} of ${quizData.length}`;
+      if (scoreTag) scoreTag.textContent = `Score: ${totalCorrect} / ${quizData.length}`;
+      if (qText) qText.textContent = q.q;
+
+      if (optsEl) {
+        optsEl.innerHTML = q.opts.map((opt, oi) => {
+          let cls = `quiz-opt`;
+          if (hasPicked) {
+            if (oi === q.correct) cls += ` is-picked-ok`;
+            else if (oi === picked) cls += ` is-picked-bad`;
+          }
+          return `
+            <button type="button" class="${cls}" onclick="pickQuizOption(${oi})">
+              <span class="label" style="min-width: 1.5rem;">${String.fromCharCode(65 + oi)}</span>
+              <span>${opt}</span>
+            </button>
+          `;
+        }).join(``);
+      }
+
+      if (fbEl && fbLabel && fbText) {
+        if (hasPicked) {
+          const isOk = picked === q.correct;
+          fbEl.hidden = false;
+          fbEl.className = isOk ? `notice is-positive` : `notice is-error`;
+          fbLabel.textContent = isOk ? `Correct` : `Incorrect — Review Rationale`;
+          fbText.textContent = q.rationale;
+        } else {
+          fbEl.hidden = true;
+        }
+      }
+      updateHeaderProgress();
+    }
+
+    function pickQuizOption(oi) {
+      appState.quizAnswers[appState.quizIndex] = oi;
+      renderQuiz();
+      persistState();
+    }
+
+    function nextQuiz() {
+      appState.quizIndex = (appState.quizIndex + 1) % quizData.length;
+      renderQuiz();
+      persistState();
+    }
+
+    function prevQuiz() {
+      appState.quizIndex = (appState.quizIndex - 1 + quizData.length) % quizData.length;
+      renderQuiz();
+      persistState();
+    }
+
+    function resetProgress(btn) {
+      if (btn && btn.dataset.armed !== `true`) {
+        btn.dataset.armed = `true`;
+        btn.textContent = `Click again to confirm reset`;
+        return;
+      }
+      if (btn) {
+        btn.dataset.armed = `false`;
+        btn.textContent = `Reset All Progress`;
+      }
+      appState.fcIndex = 0;
+      appState.fcFlipped = false;
+      appState.fcMastered = [];
+      appState.quizIndex = 0;
+      appState.quizAnswers = {};
+      renderFlashcard();
+      renderQuiz();
+      persistState();
+    }
+
+    async function initApp() {
+      try {
+        if (window.notebookAppApi && typeof window.notebookAppApi.getAppState === `function`) {
+          const saved = await window.notebookAppApi.getAppState();
+          if (saved && typeof saved === `object`) {
+            appState = Object.assign(appState, saved);
+          }
+        }
+      } catch (e) {
+        /* Fallback cleanly to defaults */
+      }
+
+      setNormStep(appState.normStep || 0);
+      setMigStep(appState.migStep || 0);
+      setLadderStep(appState.ladderStep || 0);
+      renderPartitionDiagram();
+      setExplainMode(appState.explainMode || `bad`);
+      renderIndexCheck();
+      setPattern(appState.patternIdx || 0);
+      updatePaginationSim(0);
+      renderDriftTable();
+      renderFlashcard();
+      renderQuiz();
+
+      if (window.lucide && typeof window.lucide.createIcons === `function`) {
+        window.lucide.createIcons();
+      }
+      try {
+        if (window.notebookAppApi && typeof window.notebookAppApi.notifyAppReady === `function`) {
+          window.notebookAppApi.notifyAppReady();
+        }
+      } catch (e) {
+        /* Safe outside host */
+      }
+    }
+
+    document.addEventListener(`DOMContentLoaded`, initApp);
+  </script>
+</body>
+</html>
