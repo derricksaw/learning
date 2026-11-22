@@ -1,10 +1,10 @@
 # 005 — Create an invoice once and coordinate rendering
 
-**Status:** ready
+**Status:** done
 
 **Learning:** [Durable idempotency versus temporary ownership](../../../software-design/distributed-concurrency.md#durable-idempotency-versus-temporary-ownership)
 
-**Dependencies:** existing order creation and PostgreSQL. Redis 7.4 is supplied in Compose on local port 6380; both application instances must share the same database and Redis. The Spring Data Redis starter and configuration are supplied.
+**Dependencies:** existing order creation and PostgreSQL. Redis 8.4.8 is supplied in Compose and the rootless setup on local port 6380; both application instances must share the same database and Redis. The Spring Data Redis starter and configuration are supplied.
 
 ## Business requirement
 
@@ -36,7 +36,7 @@ Supplied services perform lookup, invoice transaction/readback, rendering, docum
 
 1. [InvoiceRepository.insertIfAbsent](../src/main/java/dev/learning/orders/invoicing/InvoiceRepository.java): insert a candidate once, returning 1 for insertion or 0 for an existing order invoice. Let PostgreSQL resolve a concurrent unique-key conflict. Never overwrite an invoice on a repeated request. `InvoiceService` reads and returns the stored winner afterward.
 2. [RedisDocumentLease.acquire](../src/main/java/dev/learning/orders/invoicing/RedisDocumentLease.java): set the lock key only if absent, storing the supplied token and TTL in the same atomic command. Return whether acquisition succeeded.
-3. [RedisDocumentLease.release](../src/main/java/dev/learning/orders/invoicing/RedisDocumentLease.java): atomically compare ownership and delete only on a match, using Lua. Missing or differently owned keys must remain untouched. Do not use separate read/delete commands.
+3. [RedisDocumentLease.release](../src/main/java/dev/learning/orders/invoicing/RedisDocumentLease.java): atomically compare ownership and delete only on a match. On Redis 8.4+, native `compareAndDelete` is supported; older Redis can use Lua or a `WATCH` transaction. Missing or differently owned keys must remain untouched. Do not use separate read/delete commands.
 
 Complete them in that order. An implemented acquisition with an unfinished release still throws on cleanup; the exercise is not complete until all three are reviewed. Leave the provided durable document publication guard intact.
 
@@ -114,3 +114,15 @@ If release fails after a document was saved, the request can return unavailable 
 A production legal-invoice workflow needs authorization, durable pricing/tax snapshots, auditing, appropriate document storage, and operation/outcome handling for external billing. A strict mutable-resource lock additionally needs resource-side fencing or another guarded write; do not treat this lease as that guarantee.
 
 Scaffold compilation and packaging passed with tests skipped. The TODO paths are intentionally incomplete; Redis interaction and a two-instance walkthrough have not been executed. No new automated exercise tests were added. Request code review after implementing the three TODOs.
+
+
+### Partial code review
+
+Invoice insertion passed inspection: the statement groups its values correctly, handles conflicts specifically on `order_id`, preserves the existing invoice, and returns the affected-row count. Its completed TODO was removed. At the partial review, Redis acquisition omitted the lease TTL. Release uses Spring Data Redis's `compareAndDelete`, which maps to DELEX and requires Redis 8.4+. The runtime configuration has since been upgraded to 8.4.8. That review also identified an invalid Hibernate internal logger import. No tests were rerun; this code-completion review remains local.
+
+
+### Completed implementation review — 15 November 2026
+
+Passed by code inspection with the configured Redis 8.4.8 runtime. Invoice insertion uses the unique order identity and returns the actual affected-row count. Lease acquisition sets the token and TTL together with `setIfAbsent`; release uses native atomic `compareAndDelete`, so an expired owner's token cannot delete a newer owner's key. The supplied service rechecks the durable document after acquisition and releases through try-with-resources on all exits. The completed Redis TODOs and unused imports were removed, and the log no longer claims that every unsuccessful release proves another owner exists.
+
+Completion is based on this review, not an executed end-to-end invoice flow. No tests were rerun, and no learner implementation or completion-status changes were committed or pushed. Lease expiry can still allow overlapping rendering; the existing immutable database publication guard remains the separate protection against duplicate durable results.

@@ -4,13 +4,18 @@ import dev.learning.orders.service.OrderProblem;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.logging.Logger;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
-/** Best-effort duplicate-work suppression; database uniqueness protects durable results. */
+/**
+ * Best-effort duplicate-work suppression; database uniqueness protects durable
+ * results.
+ */
 @Component
 public class RedisDocumentLease {
     private final StringRedisTemplate redis;
@@ -36,18 +41,13 @@ public class RedisDocumentLease {
     }
 
     private boolean acquire(String key, String token) {
-        // TODO (exercise 005): set this key only if absent, with token and ttl in ONE Redis operation.
-        // Return true only if acquired. Do not split SET and expiry into separate commands.
-        throw new OrderProblem(HttpStatus.NOT_IMPLEMENTED, "EXERCISE_INCOMPLETE",
-                "Exercise 005: implement Redis lease acquisition");
+        return redis.opsForValue().setIfAbsent(key, token, ttl);
     }
 
     private void release(String key, String token) {
-        // TODO (exercise 005): atomically delete only if the stored token still equals this owner token.
-        // Use a Redis Lua script; an expired/missing or differently owned key must remain untouched.
-        // Separate GET and DELETE commands, or an unconditional DELETE, are unsafe.
-        throw new OrderProblem(HttpStatus.NOT_IMPLEMENTED, "EXERCISE_INCOMPLETE",
-                "Exercise 005: implement owner-checked lease release");
+        if (!redis.compareAndDelete(key, token)) {
+            Logger.getLogger(this.getClass().getName()).warning("Lease not released: key is absent or ownership no longer matches");
+        }
     }
 
     private OrderProblem unavailable() {

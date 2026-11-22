@@ -2,10 +2,8 @@ package dev.learning.orders.invoicing;
 
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import dev.learning.orders.service.OrderProblem;
 
 @Repository
 public class InvoiceRepository {
@@ -23,10 +21,8 @@ public class InvoiceRepository {
     }
 
     public int insertIfAbsent(InvoiceView candidate) {
-        // TODO (exercise 005): insert the candidate once, using the unique order_id as business identity.
-        // Return 1 when inserted, 0 when this order already has an invoice; never overwrite it.
-        // The insert must resolve a concurrent duplicate atomically in PostgreSQL.
-        throw new OrderProblem(HttpStatus.NOT_IMPLEMENTED, "EXERCISE_INCOMPLETE",
-                "Exercise 005: implement durable invoice deduplication");
+        return jdbc.update(
+                "INSERT INTO order_invoice (id, order_id, total_minor, currency) VALUES (?, ?, ?, ?) ON CONFLICT (order_id) DO NOTHING",
+                candidate.id(), candidate.orderId(), candidate.totalMinor(), candidate.currency());
     }
 }
