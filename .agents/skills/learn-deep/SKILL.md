@@ -27,9 +27,9 @@ Run the entire workflow through **`notebooklm-mcp-cli`** (`nlm`)—do not open a
    - 1–2 concise, idiomatic **Java** snippets (unless the topic specifically requires SQL/shell/another language).
    - High-signal production failure modes, tradeoffs, and edge cases.
    - Note at top: *"Local conceptual & Java reference brief — cross-check version-specific facts and specs against web-researched sources."*
-3. Craft a **concise, topic-driven "Build a site" prompt** (avoid over-specifying visual styling—Gemini Notebook handles styling well):
-   - **Concise & visual-first:** Minimize long prose; teach via interactive diagrams, visual flows, comparison tables, before/after state views, and step-through worked examples.
-   - **Topic-driven hierarchy:** Organize 3–5 focused sections tailored to the topic—lead with intuition before detail, distinguish general principles from implementation specifics, include realistic worked examples, failure modes, and production tradeoffs where relevant, and add concise interactive self-checks (flashcards or a short quiz) when helpful.
+3. Craft a **concise, topic-driven "Build a site" prompt** (don't over-specify styling, section counts, or presentation format):
+   - **Introduce before applying:** Explain what each concept is before using, comparing, or applying it.
+   - **Visual-first & practical:** Prefer visual explanations over dense prose, connect concepts to real-world engineering use, and include interactive self-checks when helpful.
    - **Java-first code examples:** Default code snippets to **Java** unless the topic specifically requires another language or tool (SQL, shell, etc.).
    - Ground strictly in the notebook's sources and incorporate any user-supplied focus.
 4. Run the entire NotebookLM flow (**auth check → notebook create/tag → parallel fast research `--auto-import` + local reference brief upload → trigger "Build a site" → poll every 3s → download HTML → validate HTML**) in **one background command** (`WaitMsBeforeAsync: 500`):
