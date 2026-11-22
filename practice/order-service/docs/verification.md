@@ -19,3 +19,7 @@ Browser verification used installed Chromium through Playwright against the real
 [Desktop capture](assets/workspace-desktop.png) and [mobile capture](assets/workspace-mobile.png) show actual local development state. The temporary browser verification script was not added as an exercise test.
 
 This verifies supporting setup and existing behavior, not the unfinished invoice/Redis TODOs, a production deployment, failover safety, or high-load performance. No new automated exercise tests were added.
+
+## Redis compatibility upgrade — 15 November 2026
+
+Compose and the rootless runner now select Redis 8.4.8. The rootless release was built from the upstream archive after validating its SHA-256 against Redis's published checksum. An isolated server verified that `DELEX ... IFEQ ...` deletes only the matching token, leaves a different token intact, returns zero for a missing key, and cannot delete a newer lease after expiry and reacquisition. Compose configuration and shell/Python syntax checks passed. The workspace was stopped before this change and remains stopped; only the isolated verification server was started and shut down. No exercise tests were added or rerun, and learner Java implementations were preserved.

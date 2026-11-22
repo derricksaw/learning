@@ -22,14 +22,14 @@ Stopping preserves the database volume. `docker compose down -v` deletes it; tha
 
 ## Run without administrator access
 
-On Debian 13 with Java 21+, Node 22.12+ (Node 24 recommended), Python 3, `apt-get`, and `dpkg-deb`:
+On Debian 13 with Java 21+, Node 22.12+ (Node 24 recommended), Python 3, `apt-get`, `dpkg-deb`, `gcc`, `make`, `curl`, and `tar`:
 
 ```bash
 ./scripts/bootstrap-local.sh
 ./scripts/dev.sh up
 ```
 
-The bootstrap downloads and extracts PostgreSQL 17 and Redis into ignored `.local/tools/` without installing system services. Redis comes from the host's Debian package repository; the validated local version is 8.0.2 and supports the same Lua-based protocol as Compose's Redis 7.4. The runner initializes a private database with a generated password, starts both APIs, and serves the frontend at **http://localhost:5173**. It keeps credentials, data, PID records, and logs under `.local/`.
+The bootstrap downloads PostgreSQL 17 packages and builds Redis **8.4.8** from its checksum-verified upstream source into ignored `.local/tools/`, without installing system services. Compose uses the same pinned Redis version. Redis 8.4+ supports native conditional deletion through `compareAndDelete`; on older Redis, use Lua or a `WATCH` transaction instead. Run `./scripts/install-redis.sh` to upgrade an existing local tool installation, then restart with `./scripts/dev.sh restart`. The runner initializes a private database with a generated password, starts both APIs, and serves the frontend at **http://localhost:5173**. It keeps credentials, data, PID records, and logs under `.local/`.
 
 ```bash
 ./scripts/dev.sh status
@@ -42,6 +42,14 @@ Restart after backend changes. The frontend has live reload. The runner verifies
 ![Order Lab operations workspace](docs/assets/workspace-desktop.png)
 
 [Mobile preview](docs/assets/workspace-mobile.png) · Screenshots show actual local development data.
+
+## Inspect the database with pgAdmin
+
+Local `./scripts/dev.sh up` also starts **pgAdmin at http://127.0.0.1:5050**. Expand **Local development → Order Lab → Databases → orders** to browse the live schema. Right-click **orders → ERD For Database** to generate its table/foreign-key diagram, or open **Query Tool** to run SQL.
+
+The local tool uses single-user mode, so there is no separate pgAdmin login. The Order Lab database connection is preconfigured using the existing local database password. Settings and the owner-readable password file stay under ignored `.local/state/pgadmin/`. This instance manages the rootless database; Compose startup does not start pgAdmin.
+
+The bootstrap installs pinned pgAdmin into its own Python environment. An existing checkout can simply run `./scripts/dev.sh up`; it installs pgAdmin on first use. Installation requires internet and either `uv` or Python's venv/pip support (`python3-venv` on Debian). `./scripts/dev.sh status`, `down` and `restart` include pgAdmin. Installation can also be run separately with `./scripts/install-pgadmin.sh`.
 
 ## Use the workspace
 

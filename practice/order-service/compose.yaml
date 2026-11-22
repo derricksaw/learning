@@ -15,7 +15,7 @@ services:
       timeout: 3s
       retries: 15
   redis:
-    image: redis:7.4
+    image: redis:8.4.8
     ports:
       - "127.0.0.1:6380:6379"
     healthcheck:

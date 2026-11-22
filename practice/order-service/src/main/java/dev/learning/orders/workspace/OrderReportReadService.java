@@ -54,7 +54,7 @@ public class OrderReportReadService {
     public void refreshMaterialized(String version) {
         validateVersion(version);
         // TODO 012: refresh the materialized report with a documented snapshot/reader-blocking policy.
-        // Add its definition and required metadata/indexes through a new forward migration.
+        // The SQL TODOs are in docs/query-evidence/templates/materialized-report-migration.sql.
         throw incomplete("012", "implement materialized report refresh");
     }
 

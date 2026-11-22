@@ -8,7 +8,7 @@ Dependencies: 011's understood live report and V1/V2 evidence; a functioning liv
 
 ## Learner-owned gaps
 
-Complete TODO 012 in `OrderReportReadService.materialized()` and `refreshMaterialized()`. Create the materialized report and freshness metadata through a new forward migration. Use the existing report contract: first 100 products by ID, zero-child products retained, correct order/unit/invoice totals and MYR minor-unit sums. Start from a valid report query, not a cache of incorrect totals.
+Complete TODO 012 in `OrderReportReadService.materialized()` and `refreshMaterialized()`. Start the database changes from the [migration TODO template](../docs/query-evidence/templates/materialized-report-migration.sql). Copy it into a new forward migration when you implement the materialized report and freshness metadata. Use the existing report contract: first 100 products by ID, zero-child products retained, correct order/unit/invoice totals and MYR minor-unit sums. Start from a valid report query, not a cache of incorrect totals.
 
 The UI calls `POST /workspace/order-report-view/refresh?version=v1|v2`; reads use `source=materialized`. Until implemented these return 501. Do not silently return live SQL and label it materialized.
 

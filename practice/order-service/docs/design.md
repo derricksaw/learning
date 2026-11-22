@@ -73,6 +73,8 @@ The inventory and order screens have real search, forms, and server-side results
 
 Compose's default services are PostgreSQL and Redis, preserving the existing exercise setup. The `app` profile adds two backend containers and a frontend/Nginx container, with health-gated dependencies. Backend containers run as a non-root user. Host ports bind to loopback. A rootless Debian runner supports this workspace without Docker or administrator access; it uses the same ports, APIs, Flyway migrations, and application profile.
 
+The rootless runner also owns a pgAdmin web process on `127.0.0.1:5050`. It uses an isolated pinned Python environment, a persistent local configuration database and a preconfigured Order Lab connection. It accesses PostgreSQL directly for schema inspection and query execution. The Compose stack has no pgAdmin service.
+
 PostgreSQL data survives normal stops. Redis ownership is deliberately ephemeral. `.local/`, `.env`, dependencies, build outputs, credentials, and logs are ignored. The GitHub workflow builds the frontend and runs the existing backend suite; it does not supply solutions or create exercise tests.
 
 ## Intentional limits
