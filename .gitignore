@@ -8,6 +8,8 @@ node_modules/
 *~
 .foam/
 .vscode/
+__pycache__/
+*.pyc
 
 # Terminal Paste Image folder
 /.cp-images

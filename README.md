@@ -27,7 +27,7 @@ Use this index to find likely matches, then search the relevant notes for detail
 
 ## Turn learning into practice
 
-New learning produces a focused exercise: Codex prepares the surrounding application and tests, you complete the topic-related gaps, then request a review. Reuse the [order service](practice/order-service/README.md) where it fits; additional applications and microservices are allowed when a topic needs them.
+Use `$exercise` or `/exercise` to prepare a focused exercise for the topic you are discussing. You can also supply a topic, as in `/exercise Docker networking`. If the conversation has no clear topic, Codex asks for one. Codex prepares the surrounding application and marks the implementation gaps with inline TODOs for you to complete. Reuse the [order service](practice/order-service/README.md) where it fits; additional applications and microservices are allowed when a topic needs them.
 
 Start with [001 — Place orders without overselling](practice/order-service/requirements/001-place-orders.md). Track progress in the [requirements index](practice/order-service/requirements/README.md). The order service supplies the surrounding API and PostgreSQL infrastructure; the marked transaction and stock-reservation gaps are yours to complete.
 
@@ -51,10 +51,16 @@ You can include what you learned, questions, examples, or source links:
 /learn Docker networking — add an explanation of bridge networks and container DNS
 ```
 
-The workflow searches existing notes first and improves a matching note with new information. For a new topic, it creates the note directly in an appropriate category with a descriptive filename. Include a preferred location or ask for a preview if desired. Each learning update prepares or refines the note, understanding questions, and a suitable focused exercise, then validates, commits, and pushes the learning changes. This also applies to follow-up note refinements without another `/learn`. Necessary starter code and requirements are included; learner code attempts, completed solutions, and review-only changes stay local unless you explicitly request publication. You can request local-only work or review before publication.
+The workflow searches existing notes first and improves a matching note with new information. For a new topic, it creates the note directly in an appropriate category with a descriptive filename. Include a preferred location or ask for a preview if desired. Each learning update prepares or refines the note and understanding questions, then validates, commits, and pushes the learning changes. This also applies to follow-up note refinements without another `/learn`. Exercise changes and learner solutions stay local unless you explicitly request publication. You can request local-only work or review before publication.
 
 Categories are created as needed, for example `devops/docker-networking.md` or `programming/python-generators.md`. No category structure is imposed in advance.
 
-The reusable workflow lives in [.agents/skills/learn/SKILL.md](.agents/skills/learn/SKILL.md), where Codex discovers the repository-local skill directly.
+For a deeper research pass using Gemini Notebook (`notebooklm-mcp-cli`) that runs Deep Research, uses **"Build a site"** to create interactive learning material, and downloads the site locally into a category folder (without creating a separate Markdown note), use `/learn-deep`:
 
-Invoke the installed skill with `$learn <topic>` or select it through `/skills` in Codex. If it does not appear, restart Codex. The `/learn` text remains a prompt convention handled by [AGENTS.md](AGENTS.md), rather than a registered slash-menu command.
+```text
+/learn-deep Docker networking — focus on bridge vs overlay failure modes and build an interactive packet-flow walkthrough
+```
+
+Codex discovers the repository-local [learn skill](.agents/skills/learn/SKILL.md), [learn-deep skill](.agents/skills/learn-deep/SKILL.md), and [exercise skill](.agents/skills/exercise/SKILL.md).
+
+Invoke a skill with `$learn <topic>`, `$learn-deep <topic>`, or `$exercise [topic]`, or select it through `/skills` in Codex. If it does not appear, restart Codex. The [repository instructions](AGENTS.md) also recognize the `/learn`, `/learn-deep`, and `/exercise` prompt conventions.
